@@ -25,6 +25,7 @@ try
     ConfigureServices(builder);
 
     WebApplication app = builder.Build();
+    await ApplyMigrationsAsync(app).ConfigureAwait(false);
     ConfigurePipeline(app);
     app.Run();
 }
@@ -50,6 +51,7 @@ static void ConfigureServices(WebApplicationBuilder builder)
 
     services.AddCorrelationId();
     services.AddWarehouseAuthentication(configuration);
+    services.AddWarehousePermissionValidation(configuration);
 
     services.AddApiVersioning(options =>
     {
@@ -98,6 +100,13 @@ static void ConfigurePipeline(WebApplication app)
     });
 
     app.MapControllers();
+}
+
+static async Task ApplyMigrationsAsync(WebApplication app)
+{
+    await using AsyncServiceScope scope = app.Services.CreateAsyncScope();
+    AccountsDbContext db = scope.ServiceProvider.GetRequiredService<AccountsDbContext>();
+    await db.Database.MigrateAsync().ConfigureAwait(false);
 }
 
 /// <summary>Sentinel type used by AutoMapper / FluentValidation assembly scans.</summary>

@@ -17,6 +17,7 @@
     <PackageReference Include="NLog.Targets.Loki" Version="2.5.0" />
     <PackageReference Include="NLog.Web.AspNetCore" Version="5.4.0" />
     <PackageReference Include="AspNetCore.HealthChecks.SqlServer" Version="8.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="8.0.12" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
 
     <!-- Shared libraries published from auth-service repo (GitHub Packages).
