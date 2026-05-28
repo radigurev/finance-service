@@ -39,15 +39,28 @@ frontend/
 
 ### SDDs drafted
 
-| ID | Title |
-|---|---|
-| `SDD-INT-AUTH-001` | Shared JWT Authentication with auth-service |
-| `SDD-INFRA-001` | Cross-Cutting Foundations (correlation, ProblemDetails, NLog, versioning, health) |
-| `SDD-INFRA-002` | Finance Gateway (YARP) |
-| `SDD-ACCT-001` | Chart of Accounts |
-| `SDD-UI-001` | Frontend Shell (React + MUI + i18n + Density) |
+Phase 0 shell + cross-cutting service drafts (to be continuously developed):
 
-The remaining ~25 SDDs are stubs in `docs/cross-reference-map.md` to be authored as features land.
+| ID | Title | Notes |
+|---|---|---|
+| `SDD-INT-AUTH-001` | Shared JWT Authentication with auth-service | Implemented in Accounts.API + frontend |
+| `SDD-INFRA-001` | Cross-Cutting Foundations (correlation, ProblemDetails, NLog, versioning, health, decimal arithmetic) | Implemented in shell |
+| `SDD-INFRA-002` | Finance Gateway (YARP) | Implemented in shell |
+| `SDD-INFRA-003` | Centralized Sequence Generation (Auto-Code, gapless per НАП) | Spec only |
+| `SDD-INFRA-004` | Redis Distributed Cache | Spec only |
+| `SDD-INFRA-005` | Generic Filtering (IQueryable filter/sort/page) | Spec only |
+| `SDD-INFRA-006` | Resilient Message Publisher (MassTransit + Outbox + Idempotency) | Spec only |
+| `SDD-INFRA-007` | Validation Chain (chain-of-responsibility) | Spec only |
+| `SDD-INFRA-008` | Workflow Engine (state machine for journal / invoice / payment / period lifecycles) | Spec only |
+| `SDD-INFRA-009` | Base Entity Service & Common Service Helpers | Spec only |
+| `SDD-NOM-001` | Nomenclature Reference Data (currencies + Warehouse country/state/city proxy) | Spec only |
+| `SDD-OBS-001` | Observability (NLog → Loki, OpenTelemetry → Jaeger, Prometheus) | Partial (NLog wired) |
+| `SDD-AUDIT-001` | Immutable Audit Trail (10-year retention, DB-level DENY UPDATE/DELETE) | Spec only |
+| `SDD-EVTLOG-001` | Centralized Event Log Service | Spec only |
+| `SDD-ACCT-001` | Chart of Accounts | Implemented in shell |
+| `SDD-UI-001` | Frontend Shell (React + MUI + i18n + Density) | Implemented in shell |
+
+The remaining ~15 SDDs (FIN-*, INV-*, PAY-*, RPT-*, CTRY-*, INT-WH-*, INT-BNB-*, INT-NAP-*, UI-002) are listed as `Planned` in `docs/cross-reference-map.md` and authored when features land.
 
 ## Architecture (target — module-per-service)
 
