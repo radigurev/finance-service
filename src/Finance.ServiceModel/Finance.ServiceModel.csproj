@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <PackageId>Finance.ServiceModel</PackageId>
+    <Description>DTOs, request/response contracts, and event records for Finance microservices.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Finance.Common\Finance.Common.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,74 @@
+# Finance services. Attaches to the shared `platform_net` network created by
+# the Warehouse `docker-compose.platform.yml` stack (SQL Server, RabbitMQ,
+# Redis, Loki, Grafana, Jaeger).
+#
+# Prerequisites:
+#   1. `docker network create platform_net` (if not already created)
+#   2. The Warehouse platform stack is running:
+#        docker compose -f ../Warehouse/docker-compose.platform.yml up -d
+#   3. The auth-service stack is running:
+#        docker compose -f ../auth-service/docker-compose.yml up -d
+#
+# Then bring Finance up:
+#   docker compose -f docker-compose.finance.yml up -d --build
+
+services:
+  finance-accounts-api:
+    image: finance-accounts-api:dev
+    container_name: finance-accounts-api
+    build:
+      context: .
+      dockerfile: src/Interfaces/Accounts/Finance.Accounts.API/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:6001
+      ConnectionStrings__FinanceAccountsDb: "Server=platform-sqlserver,1433;Database=finance_accounts;User Id=sa;Password=Warehouse@Dev123;TrustServerCertificate=True"
+      Jwt__SecretKey: "${JWT_SECRET_KEY:-CHANGE_ME_LOCAL_DEV_SECRET_KEY_32CHARS_MIN}"
+      Jwt__Issuer: "Warehouse.Auth.API"
+      Jwt__Audience: "Warehouse"
+      PermissionValidation__AuthApiBaseAddress: "http://warehouse-auth-api:5001"
+      LOKI_ENDPOINT: "http://platform-loki:3100"
+    ports:
+      - "6001:6001"
+    networks:
+      - platform_net
+
+  finance-gateway:
+    image: finance-gateway:dev
+    container_name: finance-gateway
+    build:
+      context: .
+      dockerfile: src/Infrastructure/Gateway/Finance.Gateway/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:6000
+      HealthChecks__AuthApi: "http://warehouse-auth-api:5001"
+      HealthChecks__AccountsApi: "http://finance-accounts-api:6001"
+      ReverseProxy__Clusters__auth-cluster__Destinations__auth-api__Address: "http://warehouse-auth-api:5001"
+      ReverseProxy__Clusters__accounts-cluster__Destinations__accounts-api__Address: "http://finance-accounts-api:6001"
+      LOKI_ENDPOINT: "http://platform-loki:3100"
+    ports:
+      - "6000:6000"
+    depends_on:
+      - finance-accounts-api
+    networks:
+      - platform_net
+
+  finance-frontend:
+    image: finance-frontend:dev
+    container_name: finance-frontend
+    build:
+      context: ./frontend
+    environment:
+      VITE_API_BASE_URL: "http://localhost:6000/api/v1"
+    ports:
+      - "6100:6100"
+    depends_on:
+      - finance-gateway
+    networks:
+      - platform_net
+
+networks:
+  platform_net:
+    name: platform_net
+    external: true

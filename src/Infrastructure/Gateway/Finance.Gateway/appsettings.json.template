@@ -1,0 +1,71 @@
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning",
+      "Yarp": "Information"
+    }
+  },
+  "AllowedHosts": "*",
+  "HealthChecks": {
+    "AuthApi": "<AUTH_API_URL>",
+    "AccountsApi": "<ACCOUNTS_API_URL>"
+  },
+  "Kestrel": {
+    "Endpoints": {
+      "Http": {
+        "Url": "http://localhost:6000"
+      }
+    }
+  },
+  "ReverseProxy": {
+    "Routes": {
+      "auth-route": {
+        "ClusterId": "auth-cluster",
+        "Match": {
+          "Path": "/api/v1/auth/{**catch-all}"
+        }
+      },
+      "users-route": {
+        "ClusterId": "auth-cluster",
+        "Match": {
+          "Path": "/api/v1/users/{**catch-all}"
+        }
+      },
+      "roles-route": {
+        "ClusterId": "auth-cluster",
+        "Match": {
+          "Path": "/api/v1/roles/{**catch-all}"
+        }
+      },
+      "permissions-route": {
+        "ClusterId": "auth-cluster",
+        "Match": {
+          "Path": "/api/v1/permissions/{**catch-all}"
+        }
+      },
+      "accounts-route": {
+        "ClusterId": "accounts-cluster",
+        "Match": {
+          "Path": "/api/v1/accounts/{**catch-all}"
+        }
+      }
+    },
+    "Clusters": {
+      "auth-cluster": {
+        "Destinations": {
+          "auth-api": {
+            "Address": "<AUTH_API_URL>"
+          }
+        }
+      },
+      "accounts-cluster": {
+        "Destinations": {
+          "accounts-api": {
+            "Address": "<ACCOUNTS_API_URL>"
+          }
+        }
+      }
+    }
+  }
+}

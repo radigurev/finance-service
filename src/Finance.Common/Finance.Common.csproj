@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <PackageId>Finance.Common</PackageId>
+    <Description>Shared error codes, enums, and helpers for Finance microservices.</Description>
+  </PropertyGroup>
+
+</Project>

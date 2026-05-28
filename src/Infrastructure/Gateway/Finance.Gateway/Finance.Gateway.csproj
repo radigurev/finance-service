@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <PackageReference Include="NLog.Targets.Loki" Version="2.5.0" />
+    <PackageReference Include="Yarp.ReverseProxy" Version="2.3.0" />
+    <PackageReference Include="NLog.Web.AspNetCore" Version="5.4.0" />
+    <PackageReference Include="AspNetCore.HealthChecks.Uris" Version="9.0.0" />
+
+    <!-- Shared correlation library published from auth-service repo (GitHub Packages). -->
+    <PackageReference Include="Warehouse.Correlation" Version="0.1.*" />
+  </ItemGroup>
+
+</Project>

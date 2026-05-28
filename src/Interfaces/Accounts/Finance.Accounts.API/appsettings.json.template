@@ -1,0 +1,32 @@
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*",
+  "ConnectionStrings": {
+    "FinanceAccountsDb": "<CONNECTION_STRING>"
+  },
+  "Country": {
+    "Code": "BG"
+  },
+  "Jwt": {
+    "SecretKey": "<JWT_SECRET_KEY_MIN_32_CHARS>",
+    "Issuer": "Warehouse.Auth.API",
+    "Audience": "Warehouse",
+    "AccessTokenExpirationMinutes": 30,
+    "RefreshTokenExpirationDays": 7
+  },
+  "PermissionValidation": {
+    "AuthApiBaseAddress": "http://localhost:5001"
+  },
+  "Kestrel": {
+    "Endpoints": {
+      "Http": {
+        "Url": "http://localhost:6001"
+      }
+    }
+  }
+}
