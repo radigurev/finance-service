@@ -1,8 +1,8 @@
 # SDD-OBS-001 — Observability (Logs, Traces, Metrics)
 
-> Status: Planned
+> Status: Active (Batch 2 — OpenTelemetry tracing ships now via `AddFinanceObservability(config)` in `Finance.Infrastructure.Web`: ASP.NET Core + HttpClient + EF Core instrumentation, OTLP exporter, and the `correlation_id` Activity tag. NLog → Loki is already wired in `Finance.Accounts.API` + `Finance.Gateway`. Prometheus `/metrics` + Grafana dashboards remain a Phase-7 SHOULD and are deferred — see §2.5–2.6.)
 > Owner: Platform
-> Last updated: 2026-05-28
+> Last updated: 2026-05-30
 > Category: Infrastructure
 > Related: SDD-INFRA-001, SDD-INFRA-006
 > Mirrors: Warehouse `SDD-OBS-001`
@@ -27,6 +27,11 @@ Finance reuses the Warehouse observability stack on the shared `platform_net` Do
 - Log aggregation across cloud regions (single deployment)
 - APM-grade profiler integration
 - Per-user log retention / GDPR redaction (TODO before production rollout)
+
+### Resolved Decision (Batch 2) — what ships now vs Phase 7
+- **Ships now (MUST):** OpenTelemetry **tracing** — `AddAspNetCoreInstrumentation()`, `AddHttpClientInstrumentation()`, `AddEntityFrameworkCoreInstrumentation()`, the OTLP exporter to `OpenTelemetry:OtlpEndpoint`, the `service.name` resource attribute, and a small enricher/processor that copies the ambient correlation id onto `Activity.Current` as the `correlation_id` tag (§2.3, §2.4). All of this is registered by `AddFinanceObservability(config)` in `src/Infrastructure/Web/Finance.Infrastructure.Web/` (SDD-INFRA-001), invoked from `AddFinanceServiceDefaults`. The `AddSource("MassTransit")` / `AddSource("StackExchange.Redis")` sources (§2.3) are added when those dependencies are wired (Phases 1/3).
+- **Deferred (SHOULD — Phase 7):** Prometheus `/metrics` exposure (§2.5) and the Grafana dashboards (§2.6). These do not ship in Batch 2.
+- NLog → Loki (§2.1–2.2) is already wired per service and unchanged by Batch 2.
 
 ## 2. Behavior
 
@@ -86,16 +91,28 @@ v1: NLog + OpenTelemetry as described. Adding new log labels is additive. Removi
 
 ## 6. Test Plan
 
+**Batch 2 — tracing (`src/Infrastructure/Finance.Infrastructure.Tests`):** the `correlation_id`-on-`Activity` enricher is testable as a `[Unit]` test without Jaeger by starting an in-process `ActivitySource` listener.
+
+| Test | Kind | Batch |
+|---|---|---|
+| `Observability_StampsCorrelationIdAsActivityTag` | [Unit] | Batch 2 |
+| `Tracing_PropagatesTraceparent_AcrossHttpAndMassTransit` | [Integration] | deferred (needs running services) |
+| `Health_OtlpEndpointReachable` | [Integration] | deferred (needs Jaeger) |
+
+**Logging (already wired) / Phase-7 metrics:**
+
 | Test | Kind |
 |---|---|
 | `Logging_StampsCorrelationIdOnEveryRecord` | [Integration] |
 | `Logging_DoesNotAcceptStringInterpolation_AnalyzerRule` | [Static analysis] |
-| `Tracing_PropagatesTraceparent_AcrossHttpAndMassTransit` | [Integration] |
-| `Tracing_StampsCorrelationIdAsActivityTag` | [Integration] |
-| `Health_OtlpEndpointReachable` | [Integration] |
-| `MetricsEndpoint_Returns200_WithDefaultCounters` | [Integration] |
+| `MetricsEndpoint_Returns200_WithDefaultCounters` | [Integration] (Phase 7 — deferred) |
 
-## 7. Open Items
+## 7. Resolved Decisions & Open Items
 
+### Resolved (Batch 2)
+- **Tracing location & scope:** OpenTelemetry tracing (ASP.NET Core + HttpClient + EF Core instrumentation, OTLP exporter, `correlation_id` Activity tag) ships via `AddFinanceObservability(config)` in `Finance.Infrastructure.Web` (SDD-INFRA-001) and is wired through `AddFinanceServiceDefaults`. This is the Batch-2 MUST scope.
+- **Metrics deferral:** Prometheus `/metrics` (§2.5) + Grafana dashboards (§2.6) are confirmed Phase-7 SHOULD and are NOT part of Batch 2.
+
+### Open
 - Log retention policy in Loki (currently 30 days). Finance regulators may require 5–10 years for **audit** logs — likely a separate, longer-retention pipeline using `IAuditService` (SDD-AUDIT-001) rather than Loki.
 - PII redaction filter in NLog (counterparty tax ID, personal name in certain reports).

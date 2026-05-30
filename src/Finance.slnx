@@ -2,9 +2,17 @@
   <Folder Name="/Databases/">
     <Project Path="Databases/Finance.Accounts.DBModel/Finance.Accounts.DBModel.csproj" />
   </Folder>
-  <Folder Name="/Infrastructure/" />
+  <Folder Name="/Infrastructure/">
+    <Project Path="Infrastructure/Finance.Infrastructure.Tests/Finance.Infrastructure.Tests.csproj" />
+  </Folder>
   <Folder Name="/Infrastructure/Gateway/">
     <Project Path="Infrastructure/Gateway/Finance.Gateway/Finance.Gateway.csproj" />
+  </Folder>
+  <Folder Name="/Infrastructure/Services/">
+    <Project Path="Infrastructure/Services/Finance.Infrastructure.Services/Finance.Infrastructure.Services.csproj" />
+  </Folder>
+  <Folder Name="/Infrastructure/Web/">
+    <Project Path="Infrastructure/Web/Finance.Infrastructure.Web/Finance.Infrastructure.Web.csproj" />
   </Folder>
   <Folder Name="/Interfaces/" />
   <Folder Name="/Interfaces/Accounts/">

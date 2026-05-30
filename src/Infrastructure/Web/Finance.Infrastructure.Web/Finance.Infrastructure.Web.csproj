@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <PackageId>Finance.Infrastructure.Web</PackageId>
+    <Description>Shared ASP.NET web baseline for Finance microservices: ProblemDetails, error-code mapping, global exception handling, correlation accessor, observability, and the AddFinanceServiceDefaults host bundle (SDD-INFRA-001, SDD-OBS-001).</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Asp.Versioning.Mvc" Version="8.1.0" />
+    <PackageReference Include="Asp.Versioning.Mvc.ApiExplorer" Version="8.1.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.9.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.9.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.9.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.EntityFrameworkCore" Version="1.0.0-beta.12" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.9.0" />
+
+    <!-- Shared correlation library published from auth-service repo (local feed offline). -->
+    <PackageReference Include="Warehouse.Correlation" Version="0.1.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Finance.Common\Finance.Common.csproj" />
+    <ProjectReference Include="..\..\..\Finance.GenericFiltering\Finance.GenericFiltering.csproj" />
+  </ItemGroup>
+
+</Project>

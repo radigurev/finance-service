@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <PackageId>Finance.Infrastructure.Services</PackageId>
+    <Description>Service-layer base classes and helpers (BaseEntityService, SearchableServiceBase, PrimaryFlagHelper, WorkflowEngine) shared by Finance microservices.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AutoMapper" Version="12.0.1" />
+    <PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="12.0.1" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.12" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Finance.Common\Finance.Common.csproj" />
+    <ProjectReference Include="..\..\..\Finance.GenericFiltering\Finance.GenericFiltering.csproj" />
+  </ItemGroup>
+
+</Project>

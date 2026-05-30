@@ -1,6 +1,6 @@
 # SDD-INFRA-009 — Base Entity Service & Common Service Helpers
 
-> Status: Active (Batch 1 — canonical `Result` / `Result<T>` outcome types in `Finance.Common/Results` shipping; `BaseEntityService`, `SearchableServiceBase`, `PrimaryFlagHelper`, `BaseApiController` deferred to Batch 2 in `Finance.Infrastructure.Services` — they need EF Core / ASP.NET)
+> Status: Active (Batch 2 — `BaseEntityService<TContext>`, `SearchableServiceBase<TEntity, TDto, TContext>`, `PrimaryFlagHelper`, and the `WorkflowEngine<T>` (SDD-INFRA-008) ship in `Finance.Infrastructure.Services`; `BaseApiController` + `IErrorCodeToStatusMap` ship in `Finance.Infrastructure.Web` (SDD-INFRA-001). The Batch-1 `Result` / `Result<T>` outcome types remain in `Finance.Common/Results`.)
 > Owner: Platform
 > Last updated: 2026-05-30
 > Category: Infrastructure
@@ -15,7 +15,7 @@ This spec defines `Finance.Infrastructure.Services`, a small set of base classes
 
 **In scope:**
 - `BaseEntityService<TContext>` — generic helpers for `FindOrNotFound`, `SaveWithConcurrencyCheck`, `MapAndSave`
-- `SearchableServiceBase<TEntity, TDto>` — generic list endpoint backed by `SDD-INFRA-005 Generic Filtering`
+- `SearchableServiceBase<TEntity, TDto, TContext>` — generic list endpoint backed by `SDD-INFRA-005 Generic Filtering`
 - `PrimaryFlagHelper` — manages "exactly one primary" semantics on collections (e.g., a counterparty's primary email)
 - `BaseApiController` — `Result<T> → ActionResult<T>` translation, ProblemDetails wiring, version-aware route builder
 - `Result` / `Result<T>` outcome types (already in `Finance.Common`; this spec describes how they're consumed)
@@ -30,8 +30,10 @@ This spec defines `Finance.Infrastructure.Services`, a small set of base classes
   - `sealed record Result(bool IsSuccess, string? ErrorCode, string? Detail)` with static `Result Success()` and `Result Failure(string code, string? detail = null)`.
   - `sealed record Result<T>(bool IsSuccess, T? Value, string? ErrorCode, string? Detail)` with static `Result<T> Success(T value)` and `Result<T> Failure(string code, string? detail = null)`.
   - These are the canonical outcome types returned by **every** Finance service and consumed by `IWorkflowEngine` (SDD-INFRA-008) and the validation chain integration (SDD-INFRA-007). Unit tests live in `src/Finance.Common.Tests`.
-- **Batch 2 (`src/Finance.Infrastructure.Services/`) — the base classes and helpers, which need EF Core / ASP.NET:**
-  - `BaseEntityService<TContext>`, `SearchableServiceBase<TEntity, TDto>`, `PrimaryFlagHelper`, `BaseApiController`, and the `IErrorCodeToStatusMap` HTTP mapping.
+- **Batch 2 — the base classes and helpers, split by their dependency surface:**
+  - **`src/Infrastructure/Services/Finance.Infrastructure.Services/` (SDK `Microsoft.NET.Sdk`, references `Finance.Common` + `Finance.GenericFiltering` + EF Core 8.0.x + AutoMapper) — the EF Core / service-layer pieces:** `BaseEntityService<TContext>`, `SearchableServiceBase<TEntity, TDto, TContext>`, `PrimaryFlagHelper`, and the concrete `WorkflowEngine<TAggregate>` + `AddWorkflowEngine<TAggregate>()` (SDD-INFRA-008).
+  - **`src/Infrastructure/Web/Finance.Infrastructure.Web/` (SDK `Microsoft.NET.Sdk` + `FrameworkReference Microsoft.AspNetCore.App`) — the ASP.NET pieces (SDD-INFRA-001):** `BaseApiController`, `IErrorCodeToStatusMap` (+ `DefaultErrorCodeToStatusMap`), `CustomProblemDetailsFactory`, `GlobalExceptionHandler`, and `HttpContextCorrelationIdAccessor`.
+  - **Rationale / resolved open item:** the original Batch-2 note placed `BaseApiController` + `IErrorCodeToStatusMap` in `Finance.Infrastructure.Services`. They instead live in the new web library `Finance.Infrastructure.Web` so the service-layer library carries no ASP.NET dependency and can be referenced by domain services without pulling in `Microsoft.AspNetCore.App`. This **resolves the "where does the controller/HTTP-mapping live" open item** shared with SDD-INFRA-001.
 
 ## 2. Behavior
 
@@ -56,17 +58,23 @@ public abstract class BaseEntityService<TContext> where TContext : DbContext
 - `MapAndSaveAsync<TEntity, TDto>` MUST add the entity to the context, call `SaveChangesAsync`, then map to `TDto`.
 - `SaveWithConcurrencyCheckAsync` MUST translate `DbUpdateConcurrencyException` to `Result.Failure(CommonErrorCodes.CONCURRENT_MODIFICATION)` (single source in `CommonErrorCodes`; see SDD-INFRA-008). This helper ships in Batch 2 with the rest of `BaseEntityService<TContext>`.
 
-### 2.2 `SearchableServiceBase<TEntity, TDto>` (MUST)
+### 2.2 `SearchableServiceBase<TEntity, TDto, TContext>` (MUST)
 ```csharp
-public abstract class SearchableServiceBase<TEntity, TDto> : BaseEntityService<TContext> where TEntity : class
+public abstract class SearchableServiceBase<TEntity, TDto, TContext> : BaseEntityService<TContext>
+    where TEntity : class
+    where TContext : DbContext
 {
+    protected virtual IQueryable<TEntity> BuildBaseQuery();
+
     public async Task<Result<PagedResult<TDto>>> SearchAsync(
         FilterRequest request,
         CancellationToken ct);
 }
 ```
-- The base method MUST apply `request` to `Db.Set<TEntity>().AsNoTracking().ApplyFilter(request)` from SDD-INFRA-005.
-- The base method MUST count BEFORE paginating, then project to `TDto` via AutoMapper.
+- **Resolved Decision (Batch 2):** the generic arity is `<TEntity, TDto, TContext>` (not `<TEntity, TDto>`); the `TContext` parameter is required so the base class can derive `BaseEntityService<TContext>` and reach `Db.Set<TEntity>()`.
+- `SearchAsync` MUST start from `BuildBaseQuery()`, whose default implementation is `Db.Set<TEntity>().AsNoTracking()`.
+- `SearchAsync` MUST apply the request via SDD-INFRA-005 `ApplyFilterWithoutPaging`, call `CountAsync` BEFORE paging, then `Skip`/`Take` and project to `TDto` via AutoMapper `ProjectTo<TDto>` + `ToListAsync`, returning a `Result<PagedResult<TDto>>`.
+- `SearchAsync` MUST catch `FilterValidationException` (SDD-INFRA-005) and translate it to `Result.Failure(...)` carrying the exception's error code.
 - Subclasses MAY override `BuildBaseQuery()` to add scope (e.g., "only this country", "only active").
 
 ### 2.3 `PrimaryFlagHelper` (MUST)
@@ -82,6 +90,7 @@ public static class PrimaryFlagHelper
 - If the collection is empty, the helper MUST be a no-op.
 
 ### 2.4 `BaseApiController` (MUST)
+> **Resolved Decision (Batch 2):** `BaseApiController` and the `IErrorCodeToStatusMap` HTTP mapping live in `src/Infrastructure/Web/Finance.Infrastructure.Web/` (the ASP.NET-dependent web library, SDD-INFRA-001), NOT in `Finance.Infrastructure.Services`. Controllers in each service inherit it.
 ```csharp
 [ApiController]
 public abstract class BaseApiController : ControllerBase
@@ -90,9 +99,10 @@ public abstract class BaseApiController : ControllerBase
     protected ActionResult ToActionResult(Result result);
 }
 ```
-- `ToActionResult` MUST map error codes to HTTP statuses via a registered `IErrorCodeToStatusMap` (default: codes ending in `_NOT_FOUND` → 404, `_INACTIVE` / `_DUPLICATE_*` / `_CONFLICT` / `CONCURRENT_*` → 409, `_FORBIDDEN` / `INSUFFICIENT_*` → 403, anything else → 400).
-- `ToActionResult` MUST construct ProblemDetails with `title = errorCode`, `detail = result.Detail ?? <fallback>`, `type = https://finance.local/errors/{code}`.
-- Validation results (FluentValidation) MUST go through `CustomProblemDetailsFactory` which puts codes in `errors` per SDD-INFRA-001.
+- On success, `ToActionResult<T>` MUST return `200 OK` with `result.Value`; `ToActionResult(Result)` MUST return `200 OK`.
+- On failure, `ToActionResult` MUST map the error code to an HTTP status via a registered `IErrorCodeToStatusMap`. The `DefaultErrorCodeToStatusMap` maps by suffix / pattern: `*_NOT_FOUND` → 404; `*_INACTIVE` / `*_DUPLICATE*` / `*_CONFLICT` / `CONCURRENT_*` → 409; `*_FORBIDDEN` / `INSUFFICIENT_*` → 403; `*_UNREACHABLE` → 503; anything else → 400. The map is DI-registered and overridable.
+- On failure, `ToActionResult` MUST construct ProblemDetails with `Status = <mapped status>`, `Title = result.ErrorCode`, `Detail = result.Detail ?? <humanized fallback>`, `Type = https://finance.local/errors/{code}`.
+- Validation results (FluentValidation) MUST go through `CustomProblemDetailsFactory` + the `InvalidModelStateResponseFactory`, which put the `.WithErrorCode(...)` codes in the `errors` dictionary with `Title = VALIDATION_FAILED` per SDD-INFRA-001.
 
 ### 2.5 `Result` / `Result<T>` (MUST)
 - **Resolved Decision (Batch 1):** the canonical outcome types live in `src/Finance.Common/Results/` (one type per file). v1 surface:
@@ -144,7 +154,7 @@ v1 is the surface above. Adding a helper method is additive. Changing the signat
 
 ## 6. Test Plan
 
-Tests are scheduled against the batch that ships the code they exercise. Integration tests need a real DB and are `[Category("Integration")]` (excluded from the default Batch-1 run — no SQL Server in this environment).
+Tests are scheduled against the batch that ships the code they exercise. **Resolved Decision (Batch 2):** EF-touching tests run against `Microsoft.EntityFrameworkCore.Sqlite` in-memory (a kept-alive open connection) so they pass without Docker / SQL Server; only tests that genuinely require real SQL Server / Redis / RabbitMQ carry `[Category("Integration")]` and are excluded from the default run. The Batch-2 tests live in `src/Infrastructure/Finance.Infrastructure.Tests` (one project covering both the Services and Web libraries).
 
 **Batch 1 — `Result` / `Result<T>` (`src/Finance.Common.Tests`):**
 
@@ -155,28 +165,39 @@ Tests are scheduled against the batch that ships the code they exercise. Integra
 | `ResultOfT_Success_CarriesValue_AndIsSuccessTrue` | [Unit] | Batch 1 |
 | `ResultOfT_Failure_HasDefaultValue_AndCarriesErrorCode` | [Unit] | Batch 1 |
 
-**Batch 2 — base classes / helpers / controller (`src/Finance.Infrastructure.Services.Tests`, created in Batch 2):**
+**Batch 2 — base classes / helpers / controller / error-map (`src/Infrastructure/Finance.Infrastructure.Tests`):**
 
 | Test | Kind | Batch |
 |---|---|---|
-| `FindOrNotFoundAsync_ReturnsNotFoundFailure_WhenMissing` | [Unit] | Batch 2 |
-| `FindOrNotFoundAsync_ReturnsEntity_WhenPresent` | [Unit] | Batch 2 |
-| `MapAndSaveAsync_PersistsAndReturnsDto` | [Integration] | Batch 2 |
-| `SaveWithConcurrencyCheckAsync_TranslatesDbUpdateConcurrencyException` | [Integration] | Batch 2 |
-| `SearchAsync_AppliesFilterPaginationAndProjection` | [Integration] | Batch 2 |
-| `SearchAsync_RespectsBaseQueryOverride` | [Unit] | Batch 2 |
+| `DefaultErrorCodeToStatusMap_MapsNotFoundTo404` | [Unit] | Batch 2 |
+| `DefaultErrorCodeToStatusMap_MapsConflictFamilyTo409` | [Unit] | Batch 2 |
+| `DefaultErrorCodeToStatusMap_MapsForbiddenFamilyTo403` | [Unit] | Batch 2 |
+| `DefaultErrorCodeToStatusMap_MapsUnreachableTo503` | [Unit] | Batch 2 |
+| `DefaultErrorCodeToStatusMap_MapsUnknownCodeTo400` | [Unit] | Batch 2 |
+| `ToActionResult_Success_Returns200WithValue` | [Unit] | Batch 2 |
+| `ToActionResult_MapsNotFoundCodeTo404` | [Unit] | Batch 2 |
+| `ToActionResult_BuildsProblemDetailsWithTitleDetailAndType` | [Unit] | Batch 2 |
+| `FindOrNotFoundAsync_ReturnsNotFoundFailure_WhenMissing` | [Unit] (SQLite in-memory) | Batch 2 |
+| `FindOrNotFoundAsync_ReturnsEntity_WhenPresent` | [Unit] (SQLite in-memory) | Batch 2 |
+| `SearchAsync_AppliesFilterPaginationAndProjection` | [Unit] (SQLite in-memory) | Batch 2 |
+| `SearchAsync_RespectsBaseQueryOverride` | [Unit] (SQLite in-memory) | Batch 2 |
 | `PrimaryFlagHelper_FlagsFirst_WhenNoneFlagged` | [Unit] | Batch 2 |
 | `PrimaryFlagHelper_KeepsOnlyFirstPrimary_WhenMultipleFlagged` | [Unit] | Batch 2 |
 | `PrimaryFlagHelper_IsNoOp_OnEmptyList` | [Unit] | Batch 2 |
-| `ToActionResult_MapsNotFoundCodeTo404` | [Unit] | Batch 2 |
-| `ToActionResult_BuildsProblemDetailsWithTitleAndType` | [Unit] | Batch 2 |
+| `MapAndSaveAsync_PersistsAndReturnsDto` | [Integration] | Batch 2 (real SQL Server) |
+| `SaveWithConcurrencyCheckAsync_TranslatesDbUpdateConcurrencyException` | [Integration] | Batch 2 (real SQL Server) |
 
 ## 7. Resolved Decisions & Deferred Items
 
 ### Resolved (Batch 1)
 - **`Result` / `Result<T>` location:** canonical outcome types live in `src/Finance.Common/Results/` (both the non-generic `Result` and generic `Result<T>`) — see §2.5.
 - **`CONCURRENT_MODIFICATION` ownership:** single source in `CommonErrorCodes`; referenced (not redefined) by `SaveWithConcurrencyCheckAsync` and the workflow engine.
-- **Batch split:** only the outcome types ship in Batch 1; `BaseEntityService`, `SearchableServiceBase`, `PrimaryFlagHelper`, and `BaseApiController` ship in Batch 2 (they need EF Core / ASP.NET) — see §1 batch-split decision.
+
+### Resolved (Batch 2)
+- **Two-library split:** the EF Core / service-layer pieces (`BaseEntityService<TContext>`, `SearchableServiceBase<TEntity, TDto, TContext>`, `PrimaryFlagHelper`, `WorkflowEngine<TAggregate>`) ship in `src/Infrastructure/Services/Finance.Infrastructure.Services/`; the ASP.NET pieces (`BaseApiController`, `IErrorCodeToStatusMap`, `CustomProblemDetailsFactory`, `GlobalExceptionHandler`, `HttpContextCorrelationIdAccessor`) ship in `src/Infrastructure/Web/Finance.Infrastructure.Web/` (SDD-INFRA-001). This keeps the service-layer library free of any ASP.NET dependency — see §1 batch-split decision.
+- **`SearchableServiceBase` arity:** `<TEntity, TDto, TContext>` (the `TContext` is required to derive `BaseEntityService<TContext>`) — see §2.2.
+- **`SearchAsync` mechanics:** `BuildBaseQuery()` (default `AsNoTracking`), `ApplyFilterWithoutPaging`, `CountAsync` before paging, `ProjectTo<TDto>`, with `FilterValidationException` translated to `Result.Failure` carrying the filter error code — see §2.2.
+- **Test environment:** EF-touching Batch-2 tests use `Microsoft.EntityFrameworkCore.Sqlite` in-memory and pass without Docker; the test project is `src/Infrastructure/Finance.Infrastructure.Tests` — see §6.
 
 ### Deferred
 - `SaveWithConcurrencyCheck` retry policy (auto-reload + reapply vs surface to client). Today: surface to client (simpler, safer). Auto-reload is in scope only when a non-conflicting fix is obvious — defer.

@@ -1,6 +1,6 @@
 # SDD-INFRA-008 — Workflow Engine (State Machine)
 
-> Status: Active (Batch 1 — interfaces + `WorkflowContext` + `WorkflowErrorCodes` in `Finance.Common/Workflow` shipping; concrete `WorkflowEngine<T>` + `AddWorkflowEngine` deferred to Batch 2)
+> Status: Active (Batch 2 — the concrete `WorkflowEngine<TAggregate>` + `AddWorkflowEngine<TAggregate>()` ship in `Finance.Infrastructure.Services`, with per-aggregate keyed state registration. The Batch-1 interfaces + `WorkflowContext` + `WorkflowErrorCodes` remain in `Finance.Common/Workflow`. In v1 the engine validates + runs hooks while the calling service owns `SaveChanges` / `RowVersion` / status-history — see §2.2.)
 > Owner: Platform
 > Last updated: 2026-05-30
 > Category: Infrastructure
@@ -41,10 +41,11 @@ The engine enforces "no illegal transitions" at the **type system** level (each 
   - `IWorkflowEngine<TAggregate>` — `Task<Result> TransitionAsync(WorkflowContext<TAggregate>, CancellationToken)`.
   - `WorkflowContext<TAggregate>` — `TAggregate Aggregate`, `string TargetState`, `string? Reason`, `string CorrelationId`.
   - `WorkflowErrorCodes` (see §4) ships now via `src/Finance.Common/ErrorCodes/`.
-- **Batch 2 (`src/Finance.Infrastructure.Services/`) — concrete implementation, needs EF Core:**
-  - `WorkflowEngine<TAggregate>` (the `TransitionAsync` orchestration in §2.2, including `RowVersion` concurrency, status-history append, and `SaveChanges` within the UoW).
-  - The `services.AddWorkflowEngine<TAggregate>()` DI extension that scans for `IWorkflowState<TAggregate>` implementations.
-- Rationale: the orchestrator touches `DbContext`, `RowVersion`, and the outbox, so it cannot live in the pure `Finance.Common` library. Keeping the interfaces in `Finance.Common` lets domain assemblies declare states without taking an infrastructure dependency.
+- **Batch 2 (`src/Infrastructure/Services/Finance.Infrastructure.Services/`) — concrete implementation, needs EF Core:**
+  - `WorkflowEngine<TAggregate>` (the `TransitionAsync` orchestration in §2.2).
+  - The `services.AddWorkflowEngine<TAggregate>()` DI extension that registers `IWorkflowState<TAggregate>` implementations into a **per-aggregate keyed registry** (keyed DI / a dictionary keyed by `StateName`); a duplicate `StateName` for the same aggregate fails at startup, and a missing state at transition time yields `STATE_NOT_REGISTERED`.
+- **Resolved Decision (Batch 2) — v1 persistence ownership split:** in v1 the engine **validates the transition and runs the state hooks only**; the **calling service owns `SaveChanges`, `RowVersion` increment, and the status-history append**. The engine itself does not persist. Where the engine does perform a save (a future iteration), it MUST translate `DbUpdateConcurrencyException` to `Result.Failure(CommonErrorCodes.CONCURRENT_MODIFICATION)`. This supersedes the earlier note that placed `SaveChanges` / `RowVersion` / status-history inside the engine (§2.2, §2.3, §2.4 are updated to match).
+- Rationale: keeping persistence in the calling service keeps the engine usable inside the service's existing unit-of-work / outbox transaction (SDD-INFRA-006) without the engine owning the `DbContext` lifecycle. Keeping the interfaces in `Finance.Common` lets domain assemblies declare states without taking an infrastructure dependency.
 
 ## 2. Behavior
 
@@ -63,22 +64,25 @@ public interface IWorkflowState<TAggregate>
 - **Resolved Decision (Batch 1) — authoritative interface signatures:** `OnEnterAsync` and `OnExitAsync` return `Task` (not `Task<Result>`); state-entry/-exit side effects either succeed or throw, and the engine surfaces transition outcome as a single `Result` from `IWorkflowEngine<TAggregate>.TransitionAsync`. Guard / validation failures are reported by the chain (§2.2 step 3, SDD-INFRA-007), not by the state hooks. The code block above is illustrative; the shipped `Finance.Common/Workflow` signatures are those recorded in the assembly-split decision in §1.
 
 ### 2.2 Engine `TransitionAsync` (MUST)
-1. Load current state implementation from DI by name.
-2. Verify the target is in `AllowedNextStates`. If not, return `Result.Failure(INVALID_STATE_TRANSITION)`.
-3. Run all `IChainValidator<WorkflowContext<TAggregate>>` registered for this transition (e.g., "period must be open for Confirmed → Posted").
+> **Resolved Decision (Batch 2) — v1 ownership:** the engine validates the transition and runs the state hooks; the **calling service** owns the actual `SaveChanges`, the `RowVersion` increment, and the status-history append (§2.3, §2.4). The engine does NOT persist in v1.
+
+1. Resolve the current and target `IWorkflowState<TAggregate>` by `StateName` from the per-aggregate keyed registry. If either is missing, return `Result.Failure(STATE_NOT_REGISTERED)`.
+2. Verify the target is in the current state's `AllowedNextStates`. If not, return `Result.Failure(INVALID_STATE_TRANSITION)`.
+3. Run all registered `IChainValidator<WorkflowContext<TAggregate>>` guards (e.g., "period must be open for Confirmed → Posted"). If any returns Failure, short-circuit and return `Result.Failure(WORKFLOW_GUARD_FAILED)` carrying the failing guard's code/detail — no `OnExit`/`OnEnter` side effects run.
 4. Call `OnExitAsync` on the current state.
-5. Update the aggregate's state field. Increment `RowVersion`.
-6. Call `OnEnterAsync` on the new state (typical side effects: publish a domain event via outbox, allocate a document number, write an audit row).
-7. `SaveChanges` inside the existing UoW.
-8. Return `Result.Success`.
+5. Call `OnEnterAsync` on the target state (typical side effects: publish a domain event via outbox, allocate a document number, write an audit row).
+6. Return `Result.Success`. The calling service then sets the aggregate's state field, increments `RowVersion`, appends the status-history row (§2.4), and calls `SaveChanges` inside its own unit of work (SDD-INFRA-006 outbox).
+7. Where a future iteration moves persistence into the engine, the engine MUST keep `TransitionAsync` ≤ 50 lines and MUST translate `DbUpdateConcurrencyException` → `Result.Failure(CommonErrorCodes.CONCURRENT_MODIFICATION)`.
 
 ### 2.3 Optimistic concurrency (MUST)
 - The aggregate MUST have a `RowVersion` (`byte[]`) column configured via `.IsRowVersion()`.
-- Concurrent transition attempts MUST result in one of them failing with `DbUpdateConcurrencyException`, which the engine MUST translate to `Result.Failure(CommonErrorCodes.CONCURRENT_MODIFICATION)`.
+- Concurrent transition attempts MUST result in one of them failing with `DbUpdateConcurrencyException`.
+- **Resolved Decision (Batch 2) — v1:** because the calling service owns `SaveChanges` (§2.2), the **service** is responsible for catching `DbUpdateConcurrencyException` and translating it to `Result.Failure(CommonErrorCodes.CONCURRENT_MODIFICATION)` — most simply by calling `BaseEntityService.SaveWithConcurrencyCheckAsync` (SDD-INFRA-009 §2.1), which performs exactly this translation. If a later iteration moves the save into the engine, the engine performs the translation instead.
 - **Resolved Decision (Batch 1):** `CONCURRENT_MODIFICATION` has a **single source** — `CommonErrorCodes` in `src/Finance.Common/ErrorCodes/`. `WorkflowErrorCodes` does NOT redefine it; both this engine and `SDD-INFRA-009` reference `CommonErrorCodes.CONCURRENT_MODIFICATION`. The `DbUpdateConcurrencyException → Result.Failure(...)` translation lives in the Batch-2 `WorkflowEngine<TAggregate>` (EF Core dependency), not in the Batch-1 interfaces.
 
 ### 2.4 Audit trail (MUST)
 - Every successful transition MUST write a row to the aggregate's `<Aggregate>StatusHistory` table: `(AggregateId, FromState, ToState, ChangedBy, ChangedAt, CorrelationId, Reason)`.
+- **Resolved Decision (Batch 2) — v1:** the status-history row is written by the **calling service** (same unit of work as the state-field update + `RowVersion` increment + `SaveChanges`, §2.2), not by the engine. The engine surfaces the validated transition outcome; the service records it.
 - The history table is append-only (no updates / deletes).
 
 ### 2.5 Reversal special case (MUST — Journal Entry)
@@ -109,20 +113,21 @@ v1 mechanics described above. Adding a new state to an existing aggregate is a `
 
 ## 6. Test Plan
 
-The tests below are scheduled against the batch that ships the code they exercise. Integration tests need a real DB and are `[Category("Integration")]` (excluded from the default Batch-1 run — no SQL Server in this environment).
+The tests below are scheduled against the batch that ships the code they exercise. **Resolved Decision (Batch 2):** the executable engine tests live in `src/Infrastructure/Finance.Infrastructure.Tests` and run as `[Unit]` — the engine itself does not persist in v1 (§2.2), so its transition logic, guards, and registry resolution are testable without a database. Tests that assert the caller-side `SaveChanges` / status-history / `RowVersion` behavior against a real DB carry `[Category("Integration")]` and are excluded from the default run (no SQL Server in this environment).
 
 | Test | Kind | Batch |
 |---|---|---|
-| `Transition_AllowedNextState_Succeeds` | [Unit] | Batch 2 (needs `WorkflowEngine<T>`) |
+| `Transition_AllowedNextState_Succeeds` | [Unit] | Batch 2 |
 | `Transition_DisallowedNextState_ReturnsInvalidStateTransition` | [Unit] | Batch 2 |
+| `Transition_UnknownState_ReturnsStateNotRegistered` | [Unit] | Batch 2 |
+| `Transition_GuardFailure_ReturnsWorkflowGuardFailed_NoSideEffects` | [Unit] | Batch 2 |
 | `Transition_RunsOnExitThenOnEnter` | [Unit] | Batch 2 |
-| `Transition_AppendsStatusHistoryRow_WithCorrelationId` | [Integration] | Batch 2 |
-| `Transition_ConcurrentCallers_OneFailsWithConcurrentModification` | [Integration] | Batch 2 |
-| `Transition_GuardFailure_ShortCircuits_NoSideEffects` | [Integration] | Batch 2 |
-| `JournalEntryReversal_CreatesSignFlippedNewEntry_LinkedToOriginal` | [Integration] | Batch 2 |
 | `Engine_FailsAtStartup_WhenDuplicateStateNamesRegistered` | [Unit] | Batch 2 |
+| `Transition_AppendsStatusHistoryRow_WithCorrelationId` | [Integration] | Batch 2 (caller-side, real SQL Server) |
+| `Transition_ConcurrentCallers_OneFailsWithConcurrentModification` | [Integration] | Batch 2 (caller-side, real SQL Server) |
+| `JournalEntryReversal_CreatesSignFlippedNewEntry_LinkedToOriginal` | [Integration] | Batch 2 (caller-side, real SQL Server) |
 
-Batch 1 ships only the interfaces, `WorkflowContext<TAggregate>`, and `WorkflowErrorCodes`; there is no executable engine behavior to unit-test yet. The first executable engine tests land in Batch 2 in `src/Finance.Infrastructure.Services.Tests` (created in Batch 2) alongside `WorkflowEngine<T>`.
+Batch 1 ships only the interfaces, `WorkflowContext<TAggregate>`, and `WorkflowErrorCodes`. The first executable engine tests land in Batch 2 in `src/Infrastructure/Finance.Infrastructure.Tests` alongside `WorkflowEngine<TAggregate>`.
 
 ## 7. Resolved Decisions & Deferred Items
 
@@ -130,6 +135,12 @@ Batch 1 ships only the interfaces, `WorkflowContext<TAggregate>`, and `WorkflowE
 - **Assembly split:** interfaces + `WorkflowContext` + `WorkflowErrorCodes` ship in `Finance.Common/Workflow` (+ `Finance.Common/ErrorCodes`); the concrete `WorkflowEngine<TAggregate>` and `AddWorkflowEngine<TAggregate>()` are deferred to Batch 2 in `Finance.Infrastructure.Services` (see §1 assembly-split decision).
 - **`CONCURRENT_MODIFICATION` ownership:** single source in `CommonErrorCodes`; `WorkflowErrorCodes` references it, never redefines it.
 - **State-hook return type:** `OnEnterAsync` / `OnExitAsync` return `Task` (see §2.1 decision).
+
+### Resolved (Batch 2)
+- **Engine location:** `WorkflowEngine<TAggregate>` + `AddWorkflowEngine<TAggregate>()` ship in `src/Infrastructure/Services/Finance.Infrastructure.Services/`.
+- **State registry:** per-aggregate keyed registration (keyed DI / dictionary by `StateName`); duplicate `StateName` for one aggregate fails at startup; a missing state at transition time returns `STATE_NOT_REGISTERED` (§1, §2.2).
+- **v1 persistence ownership:** the engine validates + runs hooks only; the calling service owns `SaveChanges` / `RowVersion` increment / status-history append, and (via `SaveWithConcurrencyCheckAsync`, SDD-INFRA-009) the `DbUpdateConcurrencyException` → `CONCURRENT_MODIFICATION` translation (§2.2–2.4).
+- **Test environment:** engine transition/guard/registry tests are `[Unit]` in `src/Infrastructure/Finance.Infrastructure.Tests` and run without Docker; caller-side DB assertions are `[Category("Integration")]` (§6).
 
 ### Deferred
 - Frontend exposure: `GET /api/v1/<aggregate>/{id}` including `availableTransitions: [...]` so React can disable buttons — adopt in the relevant frontend phase.

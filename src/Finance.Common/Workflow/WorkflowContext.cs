@@ -10,6 +10,9 @@ public sealed class WorkflowContext<TAggregate>
     /// <summary>The aggregate instance being transitioned.</summary>
     public required TAggregate Aggregate { get; init; }
 
+    /// <summary>The name of the state the aggregate is currently in (resolved by the engine before transitioning).</summary>
+    public required string CurrentState { get; init; }
+
     /// <summary>The name of the state the aggregate is being moved to.</summary>
     public required string TargetState { get; init; }
 

@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AutoMapper" Version="12.0.1" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.12" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+    <PackageReference Include="NUnit" Version="4.0.1" />
+    <PackageReference Include="NUnit3TestAdapter" Version="4.5.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Finance.Common\Finance.Common.csproj" />
+    <ProjectReference Include="..\..\Finance.GenericFiltering\Finance.GenericFiltering.csproj" />
+    <ProjectReference Include="..\Services\Finance.Infrastructure.Services\Finance.Infrastructure.Services.csproj" />
+    <ProjectReference Include="..\Web\Finance.Infrastructure.Web\Finance.Infrastructure.Web.csproj" />
+  </ItemGroup>
+
+</Project>
