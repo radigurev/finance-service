@@ -10,7 +10,8 @@
   "HealthChecks": {
     "AuthApi": "<AUTH_API_URL>",
     "AccountsApi": "<ACCOUNTS_API_URL>",
-    "NomenclatureApi": "<NOMENCLATURE_API_URL>"
+    "NomenclatureApi": "<NOMENCLATURE_API_URL>",
+    "EventLogApi": "<EVENTLOG_API_URL>"
   },
   "Kestrel": {
     "Endpoints": {
@@ -80,6 +81,12 @@
         "Match": {
           "Path": "/api/v1/cities/{**catch-all}"
         }
+      },
+      "events-route": {
+        "ClusterId": "eventlog-cluster",
+        "Match": {
+          "Path": "/api/v1/events/{**catch-all}"
+        }
       }
     },
     "Clusters": {
@@ -101,6 +108,13 @@
         "Destinations": {
           "nomenclature-api": {
             "Address": "<NOMENCLATURE_API_URL>"
+          }
+        }
+      },
+      "eventlog-cluster": {
+        "Destinations": {
+          "eventlog-api": {
+            "Address": "<EVENTLOG_API_URL>"
           }
         }
       }
