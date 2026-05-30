@@ -2,14 +2,19 @@
   <Folder Name="/Databases/">
     <Project Path="Databases/Finance.Accounts.DBModel/Finance.Accounts.DBModel.csproj" />
   </Folder>
+  <Folder Name="/Infrastructure/" />
   <Folder Name="/Infrastructure/Gateway/">
     <Project Path="Infrastructure/Gateway/Finance.Gateway/Finance.Gateway.csproj" />
   </Folder>
+  <Folder Name="/Interfaces/" />
   <Folder Name="/Interfaces/Accounts/">
     <Project Path="Interfaces/Accounts/Finance.Accounts.API/Finance.Accounts.API.csproj" />
   </Folder>
   <Folder Name="/Shared/">
+    <Project Path="Finance.Common.Tests/Finance.Common.Tests.csproj" />
     <Project Path="Finance.Common/Finance.Common.csproj" />
+    <Project Path="Finance.GenericFiltering.Tests/Finance.GenericFiltering.Tests.csproj" />
+    <Project Path="Finance.GenericFiltering/Finance.GenericFiltering.csproj" />
     <Project Path="Finance.ServiceModel/Finance.ServiceModel.csproj" />
   </Folder>
 </Solution>

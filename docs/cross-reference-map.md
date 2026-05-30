@@ -6,6 +6,7 @@ Statuses:
 - **Planned** — not yet drafted
 - **Draft** — spec written; implementation pending
 - **Draft (shell)** — spec written; minimal scaffolding in place
+- **Draft -> in progress** — spec resolved & authoritative; implementation actively underway (e.g., Batch 1 shipping)
 - **Implemented** — fully implemented and tested
 
 ## Core engine
@@ -52,11 +53,11 @@ Statuses:
 | `SDD-INFRA-002` Finance Gateway (YARP) | Draft (shell) | (planned) | `src/Infrastructure/Gateway/Finance.Gateway/Program.cs`, `CorrelationIdRequestTransform.cs`, `appsettings.json.template` | — |
 | `SDD-INFRA-003` Centralized Sequence Generation (Auto-Code, gapless per НАП) | Draft | — | (planned: `Finance.Infrastructure.Sequences`) | — |
 | `SDD-INFRA-004` Redis Distributed Cache | Draft | — | (planned: `Finance.Infrastructure.Caching`) | — |
-| `SDD-INFRA-005` Generic Filtering (IQueryable, filter/sort/page) | Draft | — | (planned: `Finance.GenericFiltering`) | (planned: shared filter UI components) |
+| `SDD-INFRA-005` Generic Filtering (IQueryable, filter/sort/page) | Draft -> in progress | `src/Finance.GenericFiltering.Tests` (NUnit; `[Category("Integration")]` SQL test excluded) | `src/Finance.GenericFiltering/Finance.GenericFiltering.csproj` (`FilterRequest`, `FilterCriterion`, `SortCriterion`, `PagedResult<T>`, `[Filterable]`/`[Sortable]`/`[Searchable]`, `ApplyFilter`, `FilterValidationException`); `src/Finance.Common/ErrorCodes/FilterErrorCodes.cs` | (planned: shared filter UI components) |
 | `SDD-INFRA-006` Resilient Message Publisher (MassTransit + Outbox + Idempotency) | Draft | — | (planned: `Finance.Infrastructure.Messaging`) | — |
-| `SDD-INFRA-007` Validation Chain | Draft | — | (planned: `Finance.Common.Validation`) | — |
-| `SDD-INFRA-008` Workflow Engine (state machine) | Draft | — | (planned: `Finance.Common.Workflow`) | (planned: aggregate detail page `availableTransitions` array) |
-| `SDD-INFRA-009` Base Entity Service & Common Service Helpers | Draft | — | (planned: `Finance.Infrastructure.Services` — `BaseEntityService`, `SearchableServiceBase`, `PrimaryFlagHelper`, `BaseApiController`) | — |
+| `SDD-INFRA-007` Validation Chain | Draft -> in progress | `src/Finance.Common.Tests` (NUnit; `[Category("Integration")]` validator test excluded) | `src/Finance.Common/Validation/` (`IChainValidator<TRequest>`, `ChainValidationResult`, `ValidationChain<TRequest>`, `AddValidationChain<TRequest>()`); generic codes in `src/Finance.Common/ErrorCodes/CommonErrorCodes.cs` | — |
+| `SDD-INFRA-008` Workflow Engine (state machine) | Draft -> in progress | `src/Finance.Common.Tests` (interface/context tests; engine tests deferred to Batch 2) | Batch 1: `src/Finance.Common/Workflow/` (`IWorkflowState<TAggregate>`, `IWorkflowEngine<TAggregate>`, `WorkflowContext<TAggregate>`); `src/Finance.Common/ErrorCodes/WorkflowErrorCodes.cs`. Batch 2: `src/Finance.Infrastructure.Services/` (`WorkflowEngine<TAggregate>`, `AddWorkflowEngine`) | (planned: aggregate detail page `availableTransitions` array) |
+| `SDD-INFRA-009` Base Entity Service & Common Service Helpers | Draft -> in progress | `src/Finance.Common.Tests` (`Result`/`Result<T>` tests); Batch 2: `src/Finance.Infrastructure.Services.Tests` | Batch 1: `src/Finance.Common/Results/` (`Result`, `Result<T>`). Batch 2: `src/Finance.Infrastructure.Services/` (`BaseEntityService`, `SearchableServiceBase`, `PrimaryFlagHelper`, `BaseApiController`) | — |
 | `SDD-OBS-001` Observability (NLog → Loki, OpenTelemetry → Jaeger, Prometheus + Grafana) | Draft | — | partial (NLog → Loki wired in Accounts.API + Gateway nlog.config; OpenTelemetry pending) | — |
 | `SDD-AUDIT-001` Immutable Audit Trail | Draft | — | (planned: `Finance.Infrastructure.Audit`, `audit.OperationsEvents` table per service) | (planned: audit log panel on every aggregate detail page) |
 | `SDD-EVTLOG-001` Centralized Event Log Service | Draft | — | (planned: `Finance.EventLog.API` port 6008) | — |

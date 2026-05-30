@@ -1,10 +1,10 @@
 # SDD-INFRA-005 — Generic Filtering
 
-> Status: Planned
+> Status: Active (Batch 1 — `Finance.GenericFiltering` library + unit tests shipping; real-SQL-Server integration test deferred)
 > Owner: Platform
-> Last updated: 2026-05-28
+> Last updated: 2026-05-30
 > Category: Infrastructure
-> Related: SDD-INFRA-001, all list endpoints
+> Related: SDD-INFRA-001, SDD-INFRA-009, all list endpoints
 > Mirrors: Warehouse `Warehouse.GenericFiltering`
 
 ---
@@ -14,9 +14,12 @@
 This spec defines `Finance.GenericFiltering`, a reusable library for translating client-supplied filter / sort / paginate parameters into `IQueryable<T>` expressions over EF Core entities. It is the same shape as `Warehouse.GenericFiltering` so that frontend filter components, query-string conventions, and OpenAPI examples can be shared 1:1.
 
 **In scope:**
-- `FilterRequest` model: `Filters`, `Sort`, `Page`, `PageSize`, `Search`
+- `FilterRequest` model: `Filters` (`List<FilterCriterion>`), `Sort` (`List<SortCriterion>`), `Page` (default 1), `PageSize` (default 50), `Search` (`string?`)
+- `FilterCriterion(Field, Operator, Value)` and `SortCriterion(Field, Direction)` where `Direction` is `asc` / `desc`
+- `PagedResult<T>` response envelope: `Items` (`IReadOnlyList<T>`), `TotalCount`, `Page`, `PageSize`
 - `[Filterable]` attribute on entity properties that opts them into client-facing filtering
 - `[Sortable]` attribute that opts properties into client-facing sorting
+- `[Searchable]` attribute that opts string properties into the OR-LIKE `search` clause
 - Operator set: `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `contains`, `startsWith`, `endsWith`, `in`, `between`, `isNull`, `isNotNull`
 - Type-safe expression building for `string`, `int`, `long`, `decimal`, `DateTimeOffset`, `Guid`, `bool`, `enum`
 - `IQueryable<T>.ApplyFilter(request)` extension that composes Where + OrderBy + Skip + Take
@@ -26,6 +29,12 @@ This spec defines `Finance.GenericFiltering`, a reusable library for translating
 - Server-side aggregation (count/sum/avg) — separate spec
 - Full-text search backends (Elastic, Meilisearch) — `Search` is a simple `LIKE '%...%'` ORed across `[Searchable]` properties
 - Field-level RBAC (filtering does NOT bypass authorization; permission is checked at the endpoint)
+
+### Resolved Decision — implementation & contract location (Batch 1)
+- The library is `src/Finance.GenericFiltering/Finance.GenericFiltering.csproj`, referencing `Finance.Common`. `Directory.Build.props` supplies `TargetFramework net8.0` — the project MUST NOT set it locally.
+- `FilterRequest`, `FilterCriterion`, `SortCriterion`, `PagedResult<T>`, the `[Filterable]` / `[Sortable]` / `[Searchable]` attributes, and the `ApplyFilter` extension all live in **this project** — it is the canonical filtering request/response contract. `PagedResult<T>` is consumed by `SearchableServiceBase<TEntity, TDto>` (SDD-INFRA-009).
+- The library MUST signal a rejected request by throwing `FilterValidationException(string ErrorCode, string Detail)` carrying the matching `FilterErrorCodes` constant. The Batch-2 web/middleware layer maps the exception to a `400 ProblemDetails` per SDD-INFRA-001 (the pure library has no ASP.NET dependency).
+- Unit tests live in `src/Finance.GenericFiltering.Tests` (NUnit). The library ships with EF Core in-memory + LINQ-to-Objects unit tests in Batch 1; the real-SQL-Server `IS NULL` translation test is `[Category("Integration")]` and excluded from the default Batch-1 run (no SQL Server in this environment).
 
 ## 2. Behavior
 
@@ -63,7 +72,8 @@ This spec defines `Finance.GenericFiltering`, a reusable library for translating
   ```
 
 ### 2.5 Authoritative ordering (MUST)
-- The library MUST always append `OrderBy(x => x.Id)` (or the entity's primary key) as the last sort term so pagination is deterministic when the client-supplied sort produces ties.
+- The library MUST always append a deterministic final sort term so pagination is stable when the client-supplied sort produces ties.
+- **Resolved Decision (Batch 1):** the final term is the property named `Id` (discovered via reflection). If the entity has no `Id` property, the library MUST fall back to the first `[Sortable]` property declared on the entity.
 
 ### 2.6 Null safety (MUST)
 - `isNull` / `isNotNull` operators MUST work on nullable value types and reference types.
@@ -85,7 +95,9 @@ All validation errors return HTTP 400 ProblemDetails per SDD-INFRA-001.
 
 ## 4. Error Rules
 
-Constants live in `Finance.Common.ErrorCodes.FilterErrorCodes`.
+Constants live in `src/Finance.Common/ErrorCodes/FilterErrorCodes.cs`: `INVALID_FILTER_FIELD`, `INVALID_SORT_FIELD`, `INVALID_OPERATOR`, `INVALID_FILTER_VALUE`, `PAGE_SIZE_TOO_LARGE`. Each is a `public const string` whose value equals its own name (SCREAMING_SNAKE_CASE). `PAGE_SIZE_TOO_LARGE` is owned here and **reused** by `SDD-EVTLOG-001` rather than redefined.
+
+The library raises these as `FilterValidationException(ErrorCode, Detail)`; the Batch-2 web layer maps each to a `400 ProblemDetails` (`title` = the code, `type` = `https://finance.local/errors/{code}`) per SDD-INFRA-001.
 
 ## 5. Versioning Notes
 
@@ -106,7 +118,13 @@ v1: the operator set in §1. New operators are additive (no version bump). Remov
 | `ApplyFilter_SearchOrsAcrossAllSearchableProperties` | [Unit] |
 | `ApplyFilter_ProducesIsNullSql_OnEqNull` | [Integration, real SQL Server] |
 
-## 7. Open Items
+## 7. Resolved Decisions & Deferred Items
 
-- Boolean AND/OR composition between filters: today all filters are AND'd together. Adding `OR` requires a structured `groups` model — deferred.
-- Polymorphic enum value matching by name vs ordinal (`AccountType.Asset` vs `1`). Today both work; codify in v2.
+### Resolved (Batch 1)
+- **Filter composition:** v1 is **AND-only** — all entries in `filters` are combined with logical AND. Boolean `OR` / grouped composition (structured `groups` model) is deferred to a future `CHG-ENH-*`.
+- **Date format:** date values (for `eq`, `between`, comparison operators on `DateTimeOffset`) MUST be supplied as ISO-8601 strings.
+- **Enum matching:** enum-typed filter values are matched **by name** (e.g., `AccountType.Asset`), not by ordinal. Ordinal matching is not supported in v1.
+
+### Deferred
+- Boolean `OR` / grouped (`groups`) composition — future `CHG-ENH-*`.
+- Server-side aggregation (count/sum/avg) — separate spec.

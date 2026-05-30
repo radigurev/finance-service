@@ -1,10 +1,10 @@
 # SDD-INFRA-007 — Validation Chain
 
-> Status: Planned
+> Status: Active (Batch 1 — `Finance.Common/Validation` chain mechanic + unit tests shipping; domain validators deferred to their owning microservices)
 > Owner: Platform
-> Last updated: 2026-05-28
+> Last updated: 2026-05-30
 > Category: Infrastructure
-> Related: SDD-INFRA-001, SDD-INV-001 (future), SDD-PAY-001 (future)
+> Related: SDD-INFRA-001, SDD-INFRA-008, SDD-INFRA-009, SDD-INV-001 (future), SDD-PAY-001 (future)
 > Mirrors: Warehouse `Warehouse.Common.Validation`
 
 ---
@@ -31,6 +31,11 @@ These checks need DB lookups and ordered short-circuiting. FluentValidation is g
 - Authorization / RBAC — handled by `[RequirePermission(...)]` at the controller layer
 - Workflow state-transition validation — handled by `IWorkflowEngine` (SDD-INFRA-008)
 
+### Resolved Decision — implementation location (Batch 1)
+- The chain mechanic lives in `src/Finance.Common/Validation/` and is **pure** — it MUST NOT take an EF Core dependency. Concrete domain validators inject their own `DbContext` from their owning microservice assembly (deferred to the relevant domain phase).
+- Batch 1 ships: `IChainValidator<TRequest>`, `ChainValidationResult`, the `ValidationChain<TRequest>` composer, and the `AddValidationChain<TRequest>()` DI extension. No domain validators ship in Batch 1.
+- Unit tests live in `src/Finance.Common.Tests` (NUnit). All Batch-1 tests are pure (`[Unit]`); the `InvoicePostPeriodValidator` example test in §6 is `[Category("Integration")]` and is excluded from the default Batch-1 run (it needs a DB and a domain validator that does not yet exist).
+
 ## 2. Behavior
 
 ### 2.1 Interface (MUST)
@@ -51,6 +56,7 @@ public readonly record struct ChainValidationResult(bool IsValid, string? ErrorC
 - The composer runs validators in DI registration order.
 - The first `Failure(...)` short-circuits the chain — no later validators are invoked.
 - The composer MUST be `Scoped` so injected `DbContext`s share the request's UoW.
+- **Resolved Decision (Batch 1):** `AddValidationChain<TRequest>()` registers the composer **Scoped** alongside the request type's validators in the same call. Keep it simple — the composer enumerates the DI-registered `IChainValidator<TRequest>` set in registration order.
 
 ### 2.3 Service layer integration (MUST)
 - Services call the chain BEFORE persisting:
@@ -75,11 +81,12 @@ if (!check.IsValid)
 
 ## 3. Validation Rules
 
-- The composer MUST throw at startup (not at request time) if zero `IChainValidator<TRequest>` are registered for a request type that uses the chain — preventing silent "no validation" bugs.
+- The composer SHOULD surface a "no validators registered" situation rather than silently passing for a request type that uses the chain.
+- **Resolved Decision (Batch 1) — documented deviation:** the original rule required a dedicated startup-reflection enforcement system that throws at startup when zero validators are registered. To avoid overengineering, Batch 1 does NOT build a separate startup-scan/throw subsystem. Because `AddValidationChain<TRequest>()` registers the composer and its validators together in one call (§2.2), a request type that uses the chain is registered with its validators by construction. This is a minor, intentional deviation from the spec's original startup-throw requirement; revisit with a `CHG-ENH-*` if a silent "no validation" bug ever surfaces in practice.
 
 ## 4. Error Rules
 
-The chain itself emits no codes — it forwards the failing validator's code. Examples introduced by Phase 4/5:
+The chain itself emits no codes — it forwards the failing validator's code. Forwarded codes MUST be `public const string` constants from `src/Finance.Common/ErrorCodes/` (a `<Domain>ErrorCodes` class or `CommonErrorCodes`) — never a raw string literal. Generic fallbacks `CommonErrorCodes.VALIDATION_FAILED` and `CommonErrorCodes.GENERIC_ERROR` are available for cross-cutting cases. Examples introduced by Phase 4/5:
 
 | Code | Validator | Trigger |
 |---|---|---|
@@ -104,7 +111,12 @@ v1 is the chain mechanic. Each new validator is a code change with no API surfac
 | `JournalEntryBalanceValidator_ReturnsUnbalanced_WhenDebitsNeCredits` | [Unit] |
 | `InvoicePostPeriodValidator_ReturnsFailure_WhenPeriodClosed` | [Integration] |
 
-## 7. Open Items
+## 7. Resolved Decisions & Deferred Items
 
+### Resolved (Batch 1)
+- **Short-circuit vs aggregate:** v1 **short-circuits** on the first failure (matches Warehouse). Aggregating multiple failures is NOT in v1.
+- **Startup enforcement:** no separate startup-scan/throw subsystem (see §3 documented deviation).
+
+### Deferred
 - Async parallel validation when validators are demonstrably independent — defer until perf data warrants.
-- Aggregating multiple failures vs short-circuiting. v1 short-circuits (matches Warehouse). Aggregating may be added later for UX (show all problems at once).
+- Aggregating multiple failures (show all problems at once) for better UX — future `CHG-ENH-*`.

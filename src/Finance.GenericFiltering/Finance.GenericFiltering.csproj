@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <PackageId>Finance.GenericFiltering</PackageId>
+    <Description>Reusable IQueryable filter, sort, and paginate library for Finance microservices.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Finance.Common\Finance.Common.csproj" />
+  </ItemGroup>
+
+</Project>
