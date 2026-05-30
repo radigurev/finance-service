@@ -3,10 +3,23 @@
     <Project Path="Databases/Finance.Accounts.DBModel/Finance.Accounts.DBModel.csproj" />
   </Folder>
   <Folder Name="/Infrastructure/">
+    <Project Path="Infrastructure/Finance.Infrastructure.Stateful.Tests/Finance.Infrastructure.Stateful.Tests.csproj" />
     <Project Path="Infrastructure/Finance.Infrastructure.Tests/Finance.Infrastructure.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Infrastructure/Audit/">
+    <Project Path="Infrastructure/Audit/Finance.Infrastructure.Audit/Finance.Infrastructure.Audit.csproj" />
+  </Folder>
+  <Folder Name="/Infrastructure/Caching/">
+    <Project Path="Infrastructure/Caching/Finance.Infrastructure.Caching/Finance.Infrastructure.Caching.csproj" />
   </Folder>
   <Folder Name="/Infrastructure/Gateway/">
     <Project Path="Infrastructure/Gateway/Finance.Gateway/Finance.Gateway.csproj" />
+  </Folder>
+  <Folder Name="/Infrastructure/Messaging/">
+    <Project Path="Infrastructure/Messaging/Finance.Infrastructure.Messaging/Finance.Infrastructure.Messaging.csproj" />
+  </Folder>
+  <Folder Name="/Infrastructure/Sequences/">
+    <Project Path="Infrastructure/Sequences/Finance.Infrastructure.Sequences/Finance.Infrastructure.Sequences.csproj" />
   </Folder>
   <Folder Name="/Infrastructure/Services/">
     <Project Path="Infrastructure/Services/Finance.Infrastructure.Services/Finance.Infrastructure.Services.csproj" />

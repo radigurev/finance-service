@@ -1,11 +1,12 @@
 # SDD-INFRA-003 — Centralized Sequence Generation (Auto-Code)
 
-> Status: Planned
+> Status: Active (library: entity + config + generator + DI). Deferred: per-service `infrastructure.Sequences` table/migration (Batch 4+), `ICountryStrategy` format integration (until SDD-CTRY-001 is authored).
 > Owner: Platform
-> Last updated: 2026-05-28
+> Last updated: 2026-05-30
 > Category: Infrastructure
-> Related: SDD-INFRA-001, SDD-ACCT-001, SDD-INV-001 (future), SDD-PAY-001 (future), SDD-INT-NAP-001 (future)
+> Related: SDD-INFRA-001, SDD-ACCT-001, SDD-INV-001 (future), SDD-PAY-001 (future), SDD-INT-NAP-001 (future), SDD-CTRY-001 (future — country format seam)
 > Mirrors: Warehouse `SDD-INFRA-003`
+> Implementation: `src/Infrastructure/Sequences/Finance.Infrastructure.Sequences/` (references `Finance.Common`)
 
 ---
 
@@ -13,21 +14,29 @@
 
 This spec defines `Finance.Infrastructure.Sequences`, a centralized sequence/number generator that every Finance microservice uses to produce gapless, formatted, unique document numbers and entity auto-codes. It replaces ad-hoc inline generation methods scattered across services. The Bulgarian tax authority (НАП) requires **gapless** numbering per document type per fiscal year — no skipped or duplicate numbers under concurrent users. This service makes that guarantee using row-level locking (`UPDLOCK, HOLDLOCK`) on a single `infrastructure.Sequences` table.
 
-The generator is country-agnostic at the core; the actual format pattern for each document type comes from `ICountryStrategy.GenerateDocumentNumber(...)` (SDD-CTRY-001) so a deployment in DE can produce different prefixes than BG without changing the generator code.
+The generator is country-agnostic at the core. Formatting goes through an **`IDocumentNumberFormatter` seam** (see §2.6) with a shipped `DefaultDocumentNumberFormatter` (BG-style patterns from §2.1). When SDD-CTRY-001 is authored, `ICountryStrategy.GenerateDocumentNumber(...)` will supply the per-country formatter so a deployment in DE can produce different prefixes than BG without changing the generator code. **That `ICountryStrategy` integration is explicitly deferred until SDD-CTRY-001 exists** — this batch ships only the seam plus the default formatter.
+
+### Batch-3 resolved decisions
+
+- **Library location:** `src/Infrastructure/Sequences/Finance.Infrastructure.Sequences/`, references `Finance.Common`. Built with `dotnet build` on its own `.csproj`; it does **not** add itself to `src/Finance.slnx` (the Integrate step does that).
+- **Ships now (Status Active):** `ISequenceGenerator`, `SequenceGenerator` implementation, `SequenceCounter` entity, its `IEntityTypeConfiguration` (schema `infrastructure`, table `Sequences`), the `IDocumentNumberFormatter` seam + `DefaultDocumentNumberFormatter`, the 7 built-in keys, and `AddSequenceGenerator<TDbContext>()`.
+- **Deferred:** the physical `infrastructure.Sequences` table and EF migration land in each **publishing service DbContext** later (Batch 4+) — the library ships the entity + configuration only, not a migration. `ICountryStrategy.GenerateDocumentNumber` integration is deferred to SDD-CTRY-001.
+- Error-code constants are referenced from `Finance.Common.ErrorCodes.SequenceErrorCodes` (`UNKNOWN_SEQUENCE_KEY`, `SEQUENCE_GAP_DETECTED`) — never raw strings.
 
 **In scope:**
 - `ISequenceGenerator` interface and `SequenceGenerator` implementation in `Finance.Infrastructure.Sequences`
-- `SequenceDefinition` configuration for prefix, padding, reset policy, fiscal-year segment
-- Database table `infrastructure.Sequences` (per-service DB) with row-level locking
+- `SequenceCounter` entity (`Key`, `CurrentValue`, `ModifiedAt`) + `IEntityTypeConfiguration` mapped to schema `infrastructure`, table `Sequences`
+- `IDocumentNumberFormatter` seam + `DefaultDocumentNumberFormatter` (BG-style pattern) for prefix, padding, reset policy, fiscal-year segment
 - Reset policies: `Yearly` (per fiscal year — required for НАП), `Monthly`, `Daily`, `Never`
 - DI extension `services.AddSequenceGenerator<TDbContext>()` per microservice
 - Built-in finance sequences: see §2.1 table
-- Integration with `ICountryStrategy` for format pattern resolution
 
 **Out of scope:**
 - Distributed sequence generation across multiple SQL Server instances (single instance assumed; each service has its own DB)
 - Sequence reservation / batch allocation
 - A REST admin API for sequences (deferred)
+- The physical `infrastructure.Sequences` table + EF migration — owned by each publishing service DbContext (Batch 4+); the library ships entity + configuration only
+- `ICountryStrategy` format integration — deferred until SDD-CTRY-001 is authored; the `IDocumentNumberFormatter` seam stands in until then
 
 ## 2. Behavior
 
@@ -43,17 +52,22 @@ The generator is country-agnostic at the core; the actual format pattern for eac
 | `PAY` | `PAY-{yyyy}-{nnnnnn}` | `PAY-2026-000001` | Yearly | 6 | Payment |
 | `RCT` | `RCT-{yyyy}-{nnnnnn}` | `RCT-2026-000001` | Yearly | 6 | Receipt |
 
-All format patterns are produced by `ICountryStrategy.GenerateDocumentNumber(DocumentType, fiscalYear, sequence)` — the table above shows BG defaults. A new country can register different prefixes without changing the generator.
+All format patterns are produced by the registered `IDocumentNumberFormatter` (§2.6). The shipped `DefaultDocumentNumberFormatter` emits the BG defaults shown above. When SDD-CTRY-001 lands, `ICountryStrategy.GenerateDocumentNumber(DocumentType, fiscalYear, sequence)` will provide the formatter so a new country can register different prefixes without changing the generator. That integration is **deferred** (see §2.6).
 
 ### 2.2 `NextAsync(sequenceKey, ct)` (MUST)
-1. Resolve the `SequenceDefinition` for the key from the registered definitions (built-in + per-country additions).
+1. Resolve the sequence definition for the key from the registered definitions (built-in keys; per-country additions arrive with SDD-CTRY-001).
 2. Compute composite key by reset policy: `{key}:{yyyy}` for Yearly, `{key}:{yyyyMM}` for Monthly, `{key}:{yyyyMMdd}` for Daily, `{key}` for Never.
 3. Open a transaction with `IsolationLevel.Serializable`.
-4. `SELECT ... WITH (UPDLOCK, HOLDLOCK)` against `infrastructure.Sequences`. If no row, INSERT with `CurrentValue = 1`. Otherwise UPDATE `CurrentValue = CurrentValue + 1` and `ModifiedAt = SYSDATETIMEOFFSET()`.
+4. `SELECT ... WITH (UPDLOCK, HOLDLOCK)` against the `SequenceCounter` row (`infrastructure.Sequences`). If no row, INSERT with `CurrentValue = 1`. Otherwise UPDATE `CurrentValue = CurrentValue + 1` and `ModifiedAt = SYSDATETIMEOFFSET()`.
 5. Commit.
-6. Hand the new counter + fiscal year to `ICountryStrategy.GenerateDocumentNumber(...)`. Return the formatted string.
+6. Hand the new counter + fiscal year to the registered `IDocumentNumberFormatter` (§2.6). Return the formatted string.
 
-The method MUST return a unique sequential value even under concurrent callers. It MUST NOT use any caching layer.
+The method MUST return a unique sequential value even under concurrent callers. It MUST NOT use any caching layer. All library async members MUST pass the `CancellationToken` through and use `ConfigureAwait(false)`.
+
+### 2.6 Document-number formatting seam (MUST)
+- Formatting MUST go through `IDocumentNumberFormatter.Format(sequenceKey, fiscalYear, counter)`; the generator MUST NOT inline prefix/padding logic.
+- A `DefaultDocumentNumberFormatter` MUST be registered by default. It produces the BG-style patterns of §2.1 (prefix, fiscal-year segment, zero-padded counter at the key's padding width).
+- `ICountryStrategy.GenerateDocumentNumber(...)` integration is **deferred** until SDD-CTRY-001 is authored. At that point a country-specific `IDocumentNumberFormatter` MAY replace the default via DI; no change to `SequenceGenerator` is required (the seam is the only extension point).
 
 ### 2.3 Concurrent caller behavior (MUST)
 Two simultaneous calls for the same `sequenceKey` MUST produce different, sequential values; the second caller waits for the first transaction to commit.
@@ -87,18 +101,22 @@ v1: built-in finance sequence keys per §2.1. Adding a new key is additive (no v
 
 ## 6. Test Plan
 
+Batch-3 unit tests live in `src/Infrastructure/Finance.Infrastructure.Tests`. EF-touching unit tests use SQLite in-memory and run by default. Tests requiring real SQL Server row-level locking (`UPDLOCK, HOLDLOCK` concurrency) are `[Category("Integration")]` and excluded from the default offline run.
+
 | Test | Kind |
 |---|---|
-| `NextAsync_ReturnsFormattedValueForRegisteredKey` | [Integration] |
-| `NextAsync_IncrementsCounterPerCall` | [Integration] |
-| `NextAsync_StartsAtOne_ForNewFiscalYear` | [Integration] |
-| `NextAsync_ConcurrentCallers_ProduceUniqueSequentialValues` | [Integration] |
+| `NextAsync_ReturnsFormattedValueForRegisteredKey` | [Unit] (SQLite in-memory) |
+| `NextAsync_IncrementsCounterPerCall` | [Unit] (SQLite in-memory) |
+| `NextAsync_StartsAtOne_ForNewFiscalYear` | [Unit] (SQLite in-memory) |
+| `NextAsync_ConcurrentCallers_ProduceUniqueSequentialValues` | [Integration] (real SQL Server lock semantics) |
 | `NextAsync_Throws_WhenSequenceKeyNotRegistered` | [Unit] |
-| `NextAsync_UsesCountryStrategyFormat_WhenAvailable` | [Integration] |
+| `DefaultDocumentNumberFormatter_ProducesBgPattern_WithPadding` | [Unit] |
+| `SequenceGenerator_UsesRegisteredFormatter_ForOutput` | [Unit] (SQLite in-memory) |
 | `SequenceDefinitions_AllBuiltInKeysAreUnique` | [Unit] |
 
 ## 7. Open Items
 
+- **Deferred — per-service table/migration:** the `infrastructure.Sequences` table + EF migration land in each publishing service DbContext in Batch 4+. The library ships only the `SequenceCounter` entity + `IEntityTypeConfiguration`.
+- **Deferred — `ICountryStrategy` integration:** when SDD-CTRY-001 is authored, the country strategy supplies the `IDocumentNumberFormatter`. Until then `DefaultDocumentNumberFormatter` (BG-style) is the only formatter.
 - Year-end rollover ceremony: how to safely retire 2026 sequences and create 2027 (automatic per Yearly policy, but ops verification needed).
-- Per-country prefix overrides: today the `Prefix` field on `SequenceDefinition` is BG-default; `ICountryStrategy.GenerateDocumentNumber` may override.
 - Multi-tenant: when multi-country deployments arrive, sequences MUST be partitioned by country code in the composite key.

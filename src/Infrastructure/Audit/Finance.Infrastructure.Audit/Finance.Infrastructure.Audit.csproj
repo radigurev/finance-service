@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <PackageId>Finance.Infrastructure.Audit</PackageId>
+    <Description>Write-path audit-trail library (IAuditService, AuditService&lt;TContext&gt;, IAuditDbContext seam, OperationsEvent entity + config, AuditEntry, AddFinanceAudit&lt;TContext&gt;) implementing SDD-AUDIT-001.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.12" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="8.0.12" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Finance.Common\Finance.Common.csproj" />
+  </ItemGroup>
+
+</Project>

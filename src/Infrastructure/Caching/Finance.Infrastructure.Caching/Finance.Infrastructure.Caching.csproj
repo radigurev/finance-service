@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <PackageId>Finance.Infrastructure.Caching</PackageId>
+    <Description>Redis distributed-cache layer for Finance microservices: ICacheService&lt;T&gt;, RedisCacheService over StackExchange.Redis IConnectionMultiplexer, cache-key conventions, TTL bounds, fall-through-on-failure, and the AddFinanceRedisCache DI bundle (SDD-INFRA-004). Owns the Redis IConnectionMultiplexer registration reused by Finance.Infrastructure.Messaging.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="StackExchange.Redis" Version="2.7.27" />
+    <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="8.0.12" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="8.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Finance.Common\Finance.Common.csproj" />
+  </ItemGroup>
+
+</Project>
