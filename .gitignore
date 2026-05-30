@@ -74,3 +74,8 @@ artifacts/
 
 ## Claude harness
 .claude/scheduled_tasks.lock
+
+# Build artifacts
+**/*.tsbuildinfo
+# UI validation evidence (ephemeral)
+**/.ui-evidence/

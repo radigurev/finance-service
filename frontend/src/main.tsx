@@ -3,8 +3,11 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { CssBaseline, ThemeProvider } from '@mui/material';
+import { SnackbarProvider } from 'notistack';
 import { App } from './app/App';
 import { useThemeStore } from './shared/stores/theme';
+import { NotificationBridge } from './shared/notifications/NotificationBridge';
+import './shared/theme/fonts';
 import './shared/i18n/i18n';
 
 const queryClient = new QueryClient({
@@ -18,11 +21,18 @@ function Root() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
-          <App />
-        </BrowserRouter>
-      </QueryClientProvider>
+      <SnackbarProvider
+        maxSnack={3}
+        autoHideDuration={5000}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <NotificationBridge />
+        <QueryClientProvider client={queryClient}>
+          <BrowserRouter>
+            <App />
+          </BrowserRouter>
+        </QueryClientProvider>
+      </SnackbarProvider>
     </ThemeProvider>
   );
 }
