@@ -1,6 +1,6 @@
 # SDD-INFRA-002 — Finance Gateway (YARP)
 
-> Status: Draft
+> Status: Active (Batch 7 — config-driven YARP gateway shipped; startup validation + dynamic per-cluster health aggregation added; business-logic-free)
 > Owner: Platform
 > Related: SDD-INT-AUTH-001, SDD-INFRA-001
 > ISA-95: Cross-cutting
@@ -32,15 +32,24 @@ The gateway uses YARP (Yet Another Reverse Proxy) with config-driven routing.
 
 ### 2.4 Health aggregation (MUST)
 - The gateway MUST expose `/health` that aggregates `/health/ready` from each downstream cluster's primary destination.
-- Failing downstream services MUST cause the gateway's `/health` to return 503.
+- The readiness checks MUST cover ALL configured clusters (`auth`, `accounts`, `nomenclature`, `eventlog`, and any future cluster). The check set MUST be DERIVED from the `ReverseProxy:Clusters` configuration — for each cluster the gateway takes that cluster's first destination address and appends `/health/ready` — so that adding a new cluster automatically extends health aggregation without code changes. The gateway MUST NOT rely on a hard-coded per-service `AddUrlGroup` list.
+- Each derived readiness check MUST be tagged `ready` so it participates in the `/health` aggregation.
+- Failing downstream services MUST cause the gateway's `/health` to return 503; when all derived readiness checks pass, `/health` MUST return 200.
 
 ### 2.5 No business logic (MUST)
-- The gateway MUST NOT execute any business code. It MUST NOT authenticate (it forwards the `Authorization` header untouched); it MUST NOT decode JWT claims; it MUST NOT log payloads.
+- The gateway MUST NOT execute any business code. It MUST NOT authenticate (it forwards the `Authorization` header untouched); it MUST NOT decode JWT claims; it MUST NOT validate JWT configuration (JWT validation is owned by each downstream service per SDD-INT-AUTH-001); it MUST NOT log payloads.
+
+### 2.6 Testability (MUST)
+- The gateway entrypoint MUST expose `public partial class Program { }` so a `WebApplicationFactory<Program>` can host it in-process for tests.
+- The `ReverseProxy` and `HealthChecks` configuration sections MUST be overridable in tests (e.g., via in-memory configuration / `WebApplicationFactory` configuration overrides), so proxy, rate-limit, correlation, and health behavior can be exercised against in-process WireMock.Net stand-ins without real downstream services.
 
 ## 3. Validation
 
-- `HealthChecks:*` config values MUST be valid URIs at startup.
-- `ReverseProxy:Clusters` MUST have at least one destination per cluster.
+### 3.1 Startup validation — fail fast (MUST)
+- At startup, BEFORE `app.Run()`, the gateway MUST validate its routing and health configuration and MUST fail fast with a clear, actionable message when validation fails.
+- Every `HealthChecks:*` configuration value (and every cluster destination address derived for health aggregation) MUST be a valid ABSOLUTE URI. A relative, malformed, or empty URI MUST abort startup with a message naming the offending key/cluster.
+- Every cluster under `ReverseProxy:Clusters` MUST declare at least one destination. A cluster with zero destinations MUST abort startup with a message naming the offending cluster.
+- Validation MUST run before the application begins serving traffic; a misconfigured gateway MUST NOT start in a partially-working state.
 
 ## 4. Error Rules
 
@@ -59,15 +68,28 @@ Gateway-level errors are not wrapped in ProblemDetails (YARP returns the downstr
 
 ## 6. Test Plan
 
+All gateway tests run in-process via `WebApplicationFactory<Program>` with downstream services replaced by in-process WireMock.Net stubs. Because WireMock.Net needs NO Docker, these tests are RUNNABLE in the default suite and MUST NOT be marked `[Category("Integration")]`. They live in `src/Infrastructure/Gateway/Finance.Gateway.Tests` and carry `[Category("SDD-INFRA-002")]`.
+
 | Test name | Kind |
 |---|---|
 | `Gateway_ProxiesAccountsRouteToAccountsApi` | [Integration] |
 | `Gateway_ProxiesAuthRouteToAuthService` | [Integration] |
 | `Gateway_AddsCorrelationIdHeaderToOutboundProxyRequest` | [Integration] |
 | `Gateway_ReturnsRateLimited_WhenIpExceedsGlobalLimit` | [Integration] |
+| `Gateway_HealthEndpoint_Returns200_WhenAllDerivedClusterReadyChecksPass` | [Integration] |
 | `Gateway_HealthEndpoint_Returns503_WhenDownstreamReadyFails` | [Integration] |
+| `Gateway_HealthAggregation_DerivesReadyCheckPerConfiguredCluster` | [Unit] |
+| `Gateway_Startup_Fails_WhenClusterHasNoDestination` | [Unit] |
+| `Gateway_Startup_Fails_WhenHealthCheckUriNotAbsolute` | [Unit] |
+
+> The `[Integration]`-kind rows above are in-process WireMock.Net + `WebApplicationFactory<Program>` tests; per project policy they DO run in the default suite (they require no real external infrastructure). Only tests requiring REAL external infrastructure (real auth-service permission lookup, real SQL/Redis/RabbitMQ) carry the excluded `[Category("Integration")]` marker.
 
 ## 7. Open Items
 
 - Service-to-service JWT minting / verification for Warehouse → Finance calls. Today the gateway just forwards bearer tokens; once `SDD-INT-AUTH-001 §Open Items` is resolved, a `ServiceToServiceJwtHandler` will be added for inbound S2S authentication.
 - Per-route auth pre-check at the gateway (e.g., reject obviously unauthenticated requests early). Today auth is enforced only at the downstream service.
+
+## 8. Versioning Notes
+
+- **v1 — Initial specification (Draft, shell).** Config-driven YARP routing, correlation-ID transform, rate limiting, hard-coded auth+accounts health aggregation.
+- **v2 — Batch 7 (Active, non-breaking).** Recorded the shipped gateway and added two behaviors: (a) fail-fast startup validation of `HealthChecks:*` absolute URIs and ≥1 destination per `ReverseProxy:Clusters` cluster before `app.Run()`; (b) dynamic per-cluster health aggregation DERIVED from `ReverseProxy:Clusters` (replacing the hard-coded `AddUrlGroup` list) so new clusters are covered automatically. Reaffirmed the gateway is business-logic-free (no JWT decode/validation) and added the testability contract (`public partial class Program { }`, overridable config). Non-breaking: the external `/api/v1/*` surface is unchanged.

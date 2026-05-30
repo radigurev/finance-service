@@ -4,6 +4,7 @@ using Finance.EventLog.API.Mapping;
 using Finance.EventLog.API.Services;
 using Finance.EventLog.DBModel;
 using Finance.Infrastructure.Caching;
+using Finance.Infrastructure.Web.Configuration;
 using Finance.Infrastructure.Web.Extensions;
 using Microsoft.EntityFrameworkCore;
 using NLog;
@@ -51,6 +52,7 @@ static void ConfigureServices(WebApplicationBuilder builder)
 
     services.AddFinanceServiceDefaults(configuration, "finance-eventlog-api");
 
+    ConfigurationValidation.ValidateFinanceJwtConfiguration(configuration);
     services.AddWarehouseAuthentication(configuration);
     services.AddWarehousePermissionValidation(configuration);
 

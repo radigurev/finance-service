@@ -9,6 +9,7 @@ using Finance.Common.Validation;
 using Finance.Infrastructure.Audit.Extensions;
 using Finance.Infrastructure.Caching;
 using Finance.Infrastructure.Messaging;
+using Finance.Infrastructure.Web.Configuration;
 using Finance.Infrastructure.Web.Extensions;
 using Finance.ServiceModel.Accounts;
 using Microsoft.EntityFrameworkCore;
@@ -57,6 +58,7 @@ static void ConfigureServices(WebApplicationBuilder builder)
 
     services.AddFinanceServiceDefaults(configuration, "finance-accounts-api");
 
+    ConfigurationValidation.ValidateFinanceJwtConfiguration(configuration);
     services.AddWarehouseAuthentication(configuration);
     services.AddWarehousePermissionValidation(configuration);
 

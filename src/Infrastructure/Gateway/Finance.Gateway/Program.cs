@@ -47,16 +47,9 @@ try
                 }));
     });
 
-    string authUrl = builder.Configuration["HealthChecks:AuthApi"] ?? "http://localhost:5001";
-    string accountsUrl = builder.Configuration["HealthChecks:AccountsApi"] ?? "http://localhost:6001";
-    string nomenclatureUrl = builder.Configuration["HealthChecks:NomenclatureApi"] ?? "http://localhost:6009";
-    string eventLogUrl = builder.Configuration["HealthChecks:EventLogApi"] ?? "http://localhost:6008";
+    GatewayConfigurationValidator.Validate(builder.Configuration);
 
-    builder.Services.AddHealthChecks()
-        .AddUrlGroup(new Uri($"{authUrl}/health/ready"), "auth-api", tags: ["ready"])
-        .AddUrlGroup(new Uri($"{accountsUrl}/health/ready"), "accounts-api", tags: ["ready"])
-        .AddUrlGroup(new Uri($"{nomenclatureUrl}/health/ready"), "nomenclature-api", tags: ["ready"])
-        .AddUrlGroup(new Uri($"{eventLogUrl}/health/ready"), "eventlog-api", tags: ["ready"]);
+    builder.Services.AddClusterReadinessHealthChecks(builder.Configuration);
 
     WebApplication app = builder.Build();
 
@@ -77,3 +70,6 @@ finally
 {
     LogManager.Shutdown();
 }
+
+/// <summary>Entry-point sentinel exposed so <c>WebApplicationFactory&lt;Program&gt;</c> can host the gateway in-process for tests (SDD-INFRA-002 §2.6).</summary>
+public partial class Program { }

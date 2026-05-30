@@ -20,6 +20,7 @@
   </Folder>
   <Folder Name="/Infrastructure/Gateway/">
     <Project Path="Infrastructure/Gateway/Finance.Gateway/Finance.Gateway.csproj" />
+    <Project Path="Infrastructure/Gateway/Finance.Gateway.Tests/Finance.Gateway.Tests.csproj" />
   </Folder>
   <Folder Name="/Infrastructure/Messaging/">
     <Project Path="Infrastructure/Messaging/Finance.Infrastructure.Messaging/Finance.Infrastructure.Messaging.csproj" />
