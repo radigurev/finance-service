@@ -9,7 +9,8 @@
   "AllowedHosts": "*",
   "HealthChecks": {
     "AuthApi": "<AUTH_API_URL>",
-    "AccountsApi": "<ACCOUNTS_API_URL>"
+    "AccountsApi": "<ACCOUNTS_API_URL>",
+    "NomenclatureApi": "<NOMENCLATURE_API_URL>"
   },
   "Kestrel": {
     "Endpoints": {
@@ -49,6 +50,36 @@
         "Match": {
           "Path": "/api/v1/accounts/{**catch-all}"
         }
+      },
+      "currencies-route": {
+        "ClusterId": "nomenclature-cluster",
+        "Match": {
+          "Path": "/api/v1/currencies/{**catch-all}"
+        }
+      },
+      "exchange-rates-route": {
+        "ClusterId": "nomenclature-cluster",
+        "Match": {
+          "Path": "/api/v1/exchange-rates/{**catch-all}"
+        }
+      },
+      "countries-route": {
+        "ClusterId": "nomenclature-cluster",
+        "Match": {
+          "Path": "/api/v1/countries/{**catch-all}"
+        }
+      },
+      "states-route": {
+        "ClusterId": "nomenclature-cluster",
+        "Match": {
+          "Path": "/api/v1/states/{**catch-all}"
+        }
+      },
+      "cities-route": {
+        "ClusterId": "nomenclature-cluster",
+        "Match": {
+          "Path": "/api/v1/cities/{**catch-all}"
+        }
       }
     },
     "Clusters": {
@@ -63,6 +94,13 @@
         "Destinations": {
           "accounts-api": {
             "Address": "<ACCOUNTS_API_URL>"
+          }
+        }
+      },
+      "nomenclature-cluster": {
+        "Destinations": {
+          "nomenclature-api": {
+            "Address": "<NOMENCLATURE_API_URL>"
           }
         }
       }

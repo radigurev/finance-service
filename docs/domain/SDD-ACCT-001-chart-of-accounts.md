@@ -13,6 +13,8 @@ The Chart of Accounts is the foundational reference dataset for the entire Finan
 
 The service supports CRUD and listing for the chart. As of Batch 4 the Accounts service is the first service to fully adopt the always-active cross-cutting foundations: it inherits the shared base service/controller helpers (`SDD-INFRA-009`), exposes a filtered/paged list (`SDD-INFRA-005`), enforces cross-aggregate rules through a validation chain (`SDD-INFRA-007`), publishes domain events through the transactional outbox (`SDD-INFRA-006`), writes immutable audit rows (`SDD-AUDIT-001`), caches reference reads (`SDD-INFRA-004`), and is traced via OpenTelemetry (`SDD-OBS-001`).
 
+**ISA-95 classification.** `Account` is an ISA-95 **Level 4 (Business Planning & Logistics)** reference/master-data entity (ISA-95 / IEC 62264 Part 1, Level 4). Create / update / deactivate are reference-data maintenance operations that emit immutable domain events for state changes (SDD-INFRA-006); they are not business transactions and model no Level 3 (MES) activity.
+
 **Scope — covered:** list (filtered/paged), get-by-id, create, update (Name + IsActive), deactivate (via update), optimistic concurrency, reference-read caching, domain-event publication, audit recording.
 
 **Scope — excluded (deferred):** Seeding from `ICountryStrategy` (BG initial chart) — Phase 2. Posting validation (account referenced-by-journal-entries / `ACCOUNT_HAS_ENTRIES`) and hard delete — Phase 3+. Multi-country selection per request — future spec. Hierarchical reporting roll-ups — Phase 7. Bulk import and account merge/renumber — deferred.
@@ -61,6 +63,7 @@ The service supports CRUD and listing for the chart. As of Batch 4 the Accounts 
 ### 2.5 Deactivate (MUST) / Hard delete (MUST NOT)
 - Hard delete MUST NOT be exposed. To retire an account, set `IsActive = false` via update (§2.4).
 - Deactivation MUST write an audit `StateChange` entry that includes a non-empty `Reason` (`SDD-AUDIT-001`) and MUST publish `AccountDeactivatedEvent` via the outbox.
+- The deactivation `Reason` is a **system-supplied standard reason** (`AccountAuditEventTypes.DefaultDeactivationReason`); the audit trail still captures who / when / what. A **caller-supplied** deactivation reason is NOT part of this version — it is a future enhancement (consistent with `SDD-NOM-001` §2.1).
 - Future spec extension (Phase 3+) MAY add `DELETE /api/v1/accounts/{id}` with `ACCOUNT_HAS_ENTRIES` (409) guarding any account referenced by a posted journal entry.
 
 ### 2.6 Country awareness (MUST)

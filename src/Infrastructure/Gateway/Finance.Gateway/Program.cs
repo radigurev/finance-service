@@ -49,10 +49,12 @@ try
 
     string authUrl = builder.Configuration["HealthChecks:AuthApi"] ?? "http://localhost:5001";
     string accountsUrl = builder.Configuration["HealthChecks:AccountsApi"] ?? "http://localhost:6001";
+    string nomenclatureUrl = builder.Configuration["HealthChecks:NomenclatureApi"] ?? "http://localhost:6009";
 
     builder.Services.AddHealthChecks()
         .AddUrlGroup(new Uri($"{authUrl}/health/ready"), "auth-api", tags: ["ready"])
-        .AddUrlGroup(new Uri($"{accountsUrl}/health/ready"), "accounts-api", tags: ["ready"]);
+        .AddUrlGroup(new Uri($"{accountsUrl}/health/ready"), "accounts-api", tags: ["ready"])
+        .AddUrlGroup(new Uri($"{nomenclatureUrl}/health/ready"), "nomenclature-api", tags: ["ready"]);
 
     WebApplication app = builder.Build();
 

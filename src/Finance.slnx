@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/Databases/">
     <Project Path="Databases/Finance.Accounts.DBModel/Finance.Accounts.DBModel.csproj" />
+    <Project Path="Databases/Finance.Nomenclature.DBModel/Finance.Nomenclature.DBModel.csproj" />
   </Folder>
   <Folder Name="/Infrastructure/">
     <Project Path="Infrastructure/Finance.Infrastructure.Stateful.Tests/Finance.Infrastructure.Stateful.Tests.csproj" />
@@ -31,6 +32,10 @@
   <Folder Name="/Interfaces/Accounts/">
     <Project Path="Interfaces/Accounts/Finance.Accounts.API/Finance.Accounts.API.csproj" />
     <Project Path="Interfaces/Accounts/Finance.Accounts.API.Tests/Finance.Accounts.API.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Interfaces/Nomenclature/">
+    <Project Path="Interfaces/Nomenclature/Finance.Nomenclature.API/Finance.Nomenclature.API.csproj" />
+    <Project Path="Interfaces/Nomenclature/Finance.Nomenclature.API.Tests/Finance.Nomenclature.API.Tests.csproj" />
   </Folder>
   <Folder Name="/Shared/">
     <Project Path="Finance.Common.Tests/Finance.Common.Tests.csproj" />
