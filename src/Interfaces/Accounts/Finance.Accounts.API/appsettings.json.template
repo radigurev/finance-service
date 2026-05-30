@@ -7,7 +7,18 @@
   },
   "AllowedHosts": "*",
   "ConnectionStrings": {
-    "FinanceAccountsDb": "<CONNECTION_STRING>"
+    "FinanceAccountsDb": "<CONNECTION_STRING>",
+    "Redis": "<REDIS_CONNECTION_STRING>"
+  },
+  "RabbitMQ": {
+    "Host": "<RABBITMQ_HOST>",
+    "VirtualHost": "/",
+    "Port": 5672,
+    "Username": "<RABBITMQ_USERNAME>",
+    "Password": "<RABBITMQ_PASSWORD>"
+  },
+  "OpenTelemetry": {
+    "OtlpEndpoint": "<OTLP_ENDPOINT>"
   },
   "Country": {
     "Code": "BG"

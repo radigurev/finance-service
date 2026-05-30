@@ -11,4 +11,10 @@ public sealed record UpdateAccountRequest
 
     /// <summary>Whether the account is active and available for posting.</summary>
     public required bool IsActive { get; init; }
+
+    /// <summary>
+    /// Base64-encoded <c>rowversion</c> token captured from the prior read, used for optimistic
+    /// concurrency. A stale token is rejected with <c>CONCURRENT_MODIFICATION</c>.
+    /// </summary>
+    public required string RowVersion { get; init; }
 }

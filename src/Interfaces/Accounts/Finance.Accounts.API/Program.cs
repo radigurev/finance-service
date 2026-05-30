@@ -1,15 +1,20 @@
-using Asp.Versioning;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using Finance.Accounts.API.Interfaces;
 using Finance.Accounts.API.Mapping;
 using Finance.Accounts.API.Services;
+using Finance.Accounts.API.Validators;
 using Finance.Accounts.DBModel;
+using Finance.Common.Validation;
+using Finance.Infrastructure.Audit.Extensions;
+using Finance.Infrastructure.Caching;
+using Finance.Infrastructure.Messaging;
+using Finance.Infrastructure.Web.Extensions;
+using Finance.ServiceModel.Accounts;
 using Microsoft.EntityFrameworkCore;
 using NLog;
 using NLog.Web;
 using Warehouse.Auth.AspNetCore;
-using Warehouse.Correlation;
 
 Logger logger = LogManager.Setup().LoadConfigurationFromAppSettings().GetCurrentClassLogger();
 
@@ -26,7 +31,8 @@ try
 
     WebApplication app = builder.Build();
     await ApplyMigrationsAsync(app).ConfigureAwait(false);
-    ConfigurePipeline(app);
+    app.UseFinanceServiceDefaults();
+    app.MapControllers();
     app.Run();
 }
 catch (Exception ex)
@@ -49,20 +55,14 @@ static void ConfigureServices(WebApplicationBuilder builder)
         options.UseSqlServer(connectionString, sql =>
             sql.MigrationsAssembly(typeof(AccountsDbContext).Assembly.GetName().Name)));
 
-    services.AddCorrelationId();
+    services.AddFinanceServiceDefaults(configuration, "finance-accounts-api");
+
     services.AddWarehouseAuthentication(configuration);
     services.AddWarehousePermissionValidation(configuration);
 
-    services.AddApiVersioning(options =>
-    {
-        options.DefaultApiVersion = new ApiVersion(1, 0);
-        options.AssumeDefaultVersionWhenUnspecified = true;
-        options.ReportApiVersions = true;
-    }).AddApiExplorer(options =>
-    {
-        options.GroupNameFormat = "'v'VVV";
-        options.SubstituteApiVersionInUrl = true;
-    });
+    services.AddFinanceRedisCache(configuration);
+    services.AddFinanceMessageBus<AccountsDbContext>(configuration);
+    services.AddFinanceAudit<AccountsDbContext>();
 
     services.AddFluentValidationAutoValidation();
     services.AddValidatorsFromAssemblyContaining<Program>();
@@ -72,34 +72,15 @@ static void ConfigureServices(WebApplicationBuilder builder)
     services.AddHealthChecks()
         .AddDbContextCheck<AccountsDbContext>("accounts-db", tags: ["ready"]);
 
+    services.AddScoped<ICurrentUserAccessor, HttpContextCurrentUserAccessor>();
     services.AddScoped<IAccountRepository, AccountRepository>();
     services.AddScoped<IAccountService, AccountService>();
 
+    services.AddValidationChain<CreateAccountRequest>(
+        typeof(DuplicateAccountCodeValidator),
+        typeof(ParentAccountValidator));
+
     services.AddControllers();
-    services.AddEndpointsApiExplorer();
-    services.AddSwaggerGen();
-}
-
-static void ConfigurePipeline(WebApplication app)
-{
-    app.UseMiddleware<CorrelationIdMiddleware>();
-
-    if (app.Environment.IsDevelopment())
-    {
-        app.UseSwagger();
-        app.UseSwaggerUI();
-    }
-
-    app.UseAuthentication();
-    app.UseAuthorization();
-
-    app.MapHealthChecks("/health/live");
-    app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
-    {
-        Predicate = check => check.Tags.Contains("ready")
-    });
-
-    app.MapControllers();
 }
 
 static async Task ApplyMigrationsAsync(WebApplication app)

@@ -23,6 +23,7 @@ public sealed class AccountConfiguration : IEntityTypeConfiguration<Account>
         builder.Property(a => a.IsActive).IsRequired().HasDefaultValue(true);
         builder.Property(a => a.CreatedAt).IsRequired().HasDefaultValueSql("SYSDATETIMEOFFSET()");
         builder.Property(a => a.UpdatedAt);
+        builder.Property(a => a.RowVersion).IsRowVersion();
 
         builder.HasIndex(a => new { a.CountryCode, a.Code }).IsUnique();
         builder.HasIndex(a => a.ParentId);

@@ -27,4 +27,11 @@ public sealed record AccountDto
 
     /// <summary>ISO 3166-1 alpha-2 country code identifying the owning chart.</summary>
     public required string CountryCode { get; init; }
+
+    /// <summary>
+    /// Base64-encoded SQL Server <c>rowversion</c> optimistic-concurrency token.
+    /// Clients round-trip this value back on update so a stale write is rejected with
+    /// <c>CONCURRENT_MODIFICATION</c>.
+    /// </summary>
+    public required string RowVersion { get; init; }
 }

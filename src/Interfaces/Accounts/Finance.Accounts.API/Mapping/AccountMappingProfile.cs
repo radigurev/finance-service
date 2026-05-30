@@ -12,6 +12,9 @@ public sealed class AccountMappingProfile : Profile
     /// <summary>Configures mappings between <see cref="Account"/> and <see cref="AccountDto"/>.</summary>
     public AccountMappingProfile()
     {
-        CreateMap<Account, AccountDto>();
+        CreateMap<Account, AccountDto>()
+            .ForMember(
+                dto => dto.RowVersion,
+                options => options.MapFrom(account => Convert.ToBase64String(account.RowVersion)));
     }
 }

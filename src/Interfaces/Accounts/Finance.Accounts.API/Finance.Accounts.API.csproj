@@ -31,7 +31,13 @@
   <ItemGroup>
     <ProjectReference Include="..\..\..\Databases\Finance.Accounts.DBModel\Finance.Accounts.DBModel.csproj" />
     <ProjectReference Include="..\..\..\Finance.Common\Finance.Common.csproj" />
+    <ProjectReference Include="..\..\..\Finance.GenericFiltering\Finance.GenericFiltering.csproj" />
     <ProjectReference Include="..\..\..\Finance.ServiceModel\Finance.ServiceModel.csproj" />
+    <ProjectReference Include="..\..\..\Infrastructure\Audit\Finance.Infrastructure.Audit\Finance.Infrastructure.Audit.csproj" />
+    <ProjectReference Include="..\..\..\Infrastructure\Caching\Finance.Infrastructure.Caching\Finance.Infrastructure.Caching.csproj" />
+    <ProjectReference Include="..\..\..\Infrastructure\Messaging\Finance.Infrastructure.Messaging\Finance.Infrastructure.Messaging.csproj" />
+    <ProjectReference Include="..\..\..\Infrastructure\Services\Finance.Infrastructure.Services\Finance.Infrastructure.Services.csproj" />
+    <ProjectReference Include="..\..\..\Infrastructure\Web\Finance.Infrastructure.Web\Finance.Infrastructure.Web.csproj" />
   </ItemGroup>
 
 </Project>

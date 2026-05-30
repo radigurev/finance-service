@@ -30,6 +30,7 @@
   <Folder Name="/Interfaces/" />
   <Folder Name="/Interfaces/Accounts/">
     <Project Path="Interfaces/Accounts/Finance.Accounts.API/Finance.Accounts.API.csproj" />
+    <Project Path="Interfaces/Accounts/Finance.Accounts.API.Tests/Finance.Accounts.API.Tests.csproj" />
   </Folder>
   <Folder Name="/Shared/">
     <Project Path="Finance.Common.Tests/Finance.Common.Tests.csproj" />
