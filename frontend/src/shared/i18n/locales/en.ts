@@ -6,7 +6,8 @@ export const en = {
     section: 'Ledger',
     accounts: 'Chart of Accounts',
     currencies: 'Currencies',
-    exchangeRates: 'Exchange Rates'
+    exchangeRates: 'Exchange Rates',
+    menu: 'Menu'
   },
   layout: {
     compact: 'Compact density',

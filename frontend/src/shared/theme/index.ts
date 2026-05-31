@@ -4,4 +4,5 @@ import '@mui/x-data-grid/themeAugmentation';
 
 export { buildLedgerTheme } from './theme';
 export { ledgerColors } from './palette';
+export { ledgerShadows } from './shadows';
 export { serifFamily, sansFamily, monoFamily, tabularFeatureSettings } from './fonts';

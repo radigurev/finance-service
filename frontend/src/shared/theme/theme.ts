@@ -1,5 +1,6 @@
 import { createTheme, type Theme } from '@mui/material/styles';
 import { ledgerColors } from './palette';
+import { ledgerShadows } from './shadows';
 import { serifFamily, sansFamily, monoFamily, tabularFeatureSettings } from './fonts';
 
 /**
@@ -68,7 +69,7 @@ export function buildLedgerTheme(): Theme {
         root: {
           border: `1px solid ${ledgerColors.hairline}`,
           borderRadius: 8,
-          boxShadow: 'none',
+          boxShadow: ledgerShadows.card,
           backgroundColor: ledgerColors.surface
         }
       }
@@ -141,8 +142,22 @@ export function buildLedgerTheme(): Theme {
         paper: {
           border: `1px solid ${ledgerColors.hairline}`,
           borderRadius: 8,
-          boxShadow: 'none'
+          boxShadow: ledgerShadows.dialog
         }
+      }
+    },
+    MuiMenu: {
+      styleOverrides: {
+        paper: {
+          boxShadow: ledgerShadows.menu,
+          border: `1px solid ${ledgerColors.hairline}`,
+          borderRadius: 6
+        }
+      }
+    },
+    MuiPopover: {
+      styleOverrides: {
+        paper: { boxShadow: ledgerShadows.menu }
       }
     },
     MuiTooltip: {

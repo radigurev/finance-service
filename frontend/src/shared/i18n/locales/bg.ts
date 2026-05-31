@@ -6,7 +6,8 @@ export const bg = {
     section: 'Счетоводство',
     accounts: 'Сметкоплан',
     currencies: 'Валути',
-    exchangeRates: 'Валутни курсове'
+    exchangeRates: 'Валутни курсове',
+    menu: 'Меню'
   },
   layout: {
     compact: 'Компактна гъстота',
