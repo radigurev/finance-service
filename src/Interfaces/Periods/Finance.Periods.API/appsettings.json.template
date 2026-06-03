@@ -1,0 +1,44 @@
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*",
+  "ConnectionStrings": {
+    "FinancePeriodsDb": "<CONNECTION_STRING>",
+    "Redis": "<REDIS_CONNECTION_STRING>"
+  },
+  "RabbitMQ": {
+    "Host": "<RABBITMQ_HOST>",
+    "VirtualHost": "/",
+    "Port": 5672,
+    "Username": "<RABBITMQ_USERNAME>",
+    "Password": "<RABBITMQ_PASSWORD>"
+  },
+  "OpenTelemetry": {
+    "OtlpEndpoint": "<OTLP_ENDPOINT>"
+  },
+  "Country": {
+    "Code": "BG",
+    "BaseCurrency": "BGN"
+  },
+  "Jwt": {
+    "SecretKey": "<JWT_SECRET_KEY_MIN_32_CHARS>",
+    "Issuer": "Warehouse.Auth.API",
+    "Audience": "Warehouse",
+    "AccessTokenExpirationMinutes": 30,
+    "RefreshTokenExpirationDays": 7
+  },
+  "PermissionValidation": {
+    "AuthApiBaseAddress": "http://localhost:5001"
+  },
+  "Kestrel": {
+    "Endpoints": {
+      "Http": {
+        "Url": "http://localhost:6002"
+      }
+    }
+  }
+}

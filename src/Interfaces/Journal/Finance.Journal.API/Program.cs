@@ -106,7 +106,11 @@ static void ConfigureWorkflow(IServiceCollection services)
     services.AddScoped<IWorkflowState<JournalEntry>, ReversedJournalEntryState>();
 
     services.AddScoped<IChainValidator<WorkflowContext<JournalEntry>>, PostingPeriodWorkflowGuard>();
-    services.AddScoped<IPostingPeriodGuard, AlwaysOpenPostingPeriodGuard>();
+
+    // SDD-FIN-004 §2.7: the dormant AlwaysOpenPostingPeriodGuard is replaced in production by the
+    // gateway-backed guard that activates POSTING_PERIOD_CLOSED. AlwaysOpenPostingPeriodGuard remains in
+    // the codebase as the default unit-test fallback.
+    services.AddScoped<IPostingPeriodGuard, GatewayPostingPeriodGuard>();
 
     services.AddWorkflowEngine<JournalEntry>();
 }
@@ -136,6 +140,14 @@ static void ConfigureReferenceDataClients(IServiceCollection services, IConfigur
         .AddStandardResilienceHandler();
 
     services.AddRefitClient<ICurrencyReadClient>()
+        .ConfigureHttpClient(client => client.BaseAddress = new Uri(gatewayBaseUrl))
+        .AddHttpMessageHandler<CorrelationIdDelegatingHandler>()
+        .AddHttpMessageHandler<BearerTokenForwardingHandler>()
+        .AddStandardResilienceHandler();
+
+    // SDD-FIN-004 §2.7: the posting-period guard reads period status through the gateway with the same
+    // handler chain as the Accounts / Currencies reference clients.
+    services.AddRefitClient<IPeriodReadClient>()
         .ConfigureHttpClient(client => client.BaseAddress = new Uri(gatewayBaseUrl))
         .AddHttpMessageHandler<CorrelationIdDelegatingHandler>()
         .AddHttpMessageHandler<BearerTokenForwardingHandler>()

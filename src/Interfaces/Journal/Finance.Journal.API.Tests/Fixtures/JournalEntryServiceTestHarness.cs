@@ -125,6 +125,47 @@ public sealed class JournalEntryServiceTestHarness
         return harness;
     }
 
+    /// <summary>
+    /// Builds a harness whose workflow engine uses the supplied <paramref name="periodGuard"/> in place of
+    /// the default mocked guard. Used by the SDD-FIN-004 §6.4 seam test to inject the real
+    /// <c>GatewayPostingPeriodGuard</c> (wired to a faked Periods reader) so the dormant Batch-10
+    /// <c>POSTING_PERIOD_CLOSED</c> rule is exercised end-to-end through the live posting path
+    /// (SDD-FIN-002 §2.7). The harness's <see cref="PeriodGuardMock"/> is left at its default for callers
+    /// that do not use it.
+    /// </summary>
+    /// <param name="db">The SQLite-backed journal context.</param>
+    /// <param name="periodGuard">The real posting-period guard to wire into the workflow engine.</param>
+    /// <returns>A wired harness driving the supplied guard.</returns>
+    public static JournalEntryServiceTestHarness BuildWithGuard(JournalDbContext db, IPostingPeriodGuard periodGuard)
+    {
+        ArgumentNullException.ThrowIfNull(db);
+        ArgumentNullException.ThrowIfNull(periodGuard);
+
+        List<AuditEntry> recordedAudits = [];
+        List<object> publishedEvents = [];
+
+        IMapper mapper = new MapperConfiguration(cfg => cfg.AddProfile<JournalMappingProfile>())
+            .CreateMapper();
+
+        FakeReferenceDataReader referenceData = new();
+
+        JournalEntryValidator validator = new(
+            new JournalEntryShapeValidator(),
+            new ValidationChain<JournalEntryValidationContext>(
+            [
+                new BalanceValidator(),
+                new LineBaseAmountValidator(),
+                new AccountPostabilityValidator(referenceData),
+                new LineCurrencyValidator(referenceData)
+            ]));
+
+        Mock<IPostingPeriodGuard> periodGuardMock = new();
+        WorkflowEngine<JournalEntry> workflow = BuildWorkflow(periodGuard);
+
+        return BuildWithDependencies(
+            db, mapper, validator, workflow, referenceData, periodGuardMock, recordedAudits, publishedEvents);
+    }
+
     private static JournalEntryServiceTestHarness BuildWithDependencies(
         JournalDbContext db,
         IMapper mapper,

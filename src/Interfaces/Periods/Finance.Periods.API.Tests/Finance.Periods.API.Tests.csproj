@@ -9,7 +9,6 @@
   <ItemGroup>
     <PackageReference Include="MassTransit" Version="8.3.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.12" />
-    <PackageReference Include="Refit" Version="7.2.22" />
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
     <PackageReference Include="Moq" Version="4.20.70" />
@@ -18,8 +17,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Finance.Journal.API\Finance.Journal.API.csproj" />
-    <ProjectReference Include="..\..\..\Databases\Finance.Journal.DBModel\Finance.Journal.DBModel.csproj" />
+    <ProjectReference Include="..\Finance.Periods.API\Finance.Periods.API.csproj" />
+    <ProjectReference Include="..\..\..\Databases\Finance.Periods.DBModel\Finance.Periods.DBModel.csproj" />
   </ItemGroup>
 
 </Project>

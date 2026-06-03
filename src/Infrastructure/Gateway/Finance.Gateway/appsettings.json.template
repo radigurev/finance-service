@@ -12,7 +12,8 @@
     "AccountsApi": "<ACCOUNTS_API_URL>",
     "NomenclatureApi": "<NOMENCLATURE_API_URL>",
     "EventLogApi": "<EVENTLOG_API_URL>",
-    "JournalApi": "<JOURNAL_API_URL>"
+    "JournalApi": "<JOURNAL_API_URL>",
+    "PeriodsApi": "<PERIODS_API_URL>"
   },
   "Kestrel": {
     "Endpoints": {
@@ -94,6 +95,12 @@
         "Match": {
           "Path": "/api/v1/journal-entries/{**catch-all}"
         }
+      },
+      "periods-route": {
+        "ClusterId": "periods-cluster",
+        "Match": {
+          "Path": "/api/v1/periods/{**catch-all}"
+        }
       }
     },
     "Clusters": {
@@ -129,6 +136,13 @@
         "Destinations": {
           "journal-api": {
             "Address": "<JOURNAL_API_URL>"
+          }
+        }
+      },
+      "periods-cluster": {
+        "Destinations": {
+          "periods-api": {
+            "Address": "<PERIODS_API_URL>"
           }
         }
       }

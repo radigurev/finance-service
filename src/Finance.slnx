@@ -4,6 +4,7 @@
     <Project Path="Databases/Finance.EventLog.DBModel/Finance.EventLog.DBModel.csproj" />
     <Project Path="Databases/Finance.Nomenclature.DBModel/Finance.Nomenclature.DBModel.csproj" />
     <Project Path="Databases/Finance.Journal.DBModel/Finance.Journal.DBModel.csproj" />
+    <Project Path="Databases/Finance.Periods.DBModel/Finance.Periods.DBModel.csproj" />
   </Folder>
   <Folder Name="/Infrastructure/">
     <Project Path="Infrastructure/Finance.Infrastructure.Stateful.Tests/Finance.Infrastructure.Stateful.Tests.csproj" />
@@ -47,6 +48,10 @@
   <Folder Name="/Interfaces/Journal/">
     <Project Path="Interfaces/Journal/Finance.Journal.API/Finance.Journal.API.csproj" />
     <Project Path="Interfaces/Journal/Finance.Journal.API.Tests/Finance.Journal.API.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Interfaces/Periods/">
+    <Project Path="Interfaces/Periods/Finance.Periods.API/Finance.Periods.API.csproj" />
+    <Project Path="Interfaces/Periods/Finance.Periods.API.Tests/Finance.Periods.API.Tests.csproj" />
   </Folder>
   <Folder Name="/Shared/">
     <Project Path="Finance.Common.Tests/Finance.Common.Tests.csproj" />
