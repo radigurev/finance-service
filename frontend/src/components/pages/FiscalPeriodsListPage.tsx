@@ -49,8 +49,7 @@ export function FiscalPeriodsListPage() {
     pageSize: DEFAULT_PAGE_SIZE
   });
   const [sortModel, setSortModel] = useState<GridSortModel>([
-    { field: 'fiscalYear', sort: 'desc' },
-    { field: 'periodNumber', sort: 'asc' }
+    { field: 'fiscalYear', sort: 'desc' }
   ]);
   const [generateOpen, setGenerateOpen] = useState(false);
   const [closing, setClosing] = useState<FiscalPeriodDto | null>(null);
@@ -63,9 +62,14 @@ export function FiscalPeriodsListPage() {
       filters: yearFilter
         ? [{ field: 'fiscalYear', operator: 'eq', value: Number(yearFilter) }]
         : undefined,
-      sort: sortModel
-        .filter((s) => s.sort)
-        .map((s) => ({ field: s.field, direction: s.sort === 'desc' ? 'desc' : 'asc' }))
+      sort: (() => {
+        const gridSort = sortModel
+          .filter((s) => s.sort)
+          .map((s) => ({ field: s.field, direction: (s.sort === 'desc' ? 'desc' : 'asc') as 'asc' | 'desc' }));
+        return gridSort.some((s) => s.field === 'periodNumber')
+          ? gridSort
+          : [...gridSort, { field: 'periodNumber', direction: 'asc' as const }];
+      })()
     }),
     [paginationModel, sortModel, yearFilter]
   );

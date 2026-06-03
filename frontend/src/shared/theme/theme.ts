@@ -137,7 +137,10 @@ export function buildLedgerTheme(): Theme {
       styleOverrides: { root: { borderColor: ledgerColors.hairline } }
     },
     MuiDialog: {
-      defaultProps: { PaperProps: { variant: 'outlined' } },
+      // elevation:0 alongside variant:'outlined' avoids MUI's "Combining elevation={24} with
+      // variant='outlined' has no effect" warning. The ledger dialog depth is applied via the
+      // styleOverrides.paper boxShadow below, not via MUI's elevation ramp.
+      defaultProps: { PaperProps: { variant: 'outlined', elevation: 0 } },
       styleOverrides: {
         paper: {
           border: `1px solid ${ledgerColors.hairline}`,
