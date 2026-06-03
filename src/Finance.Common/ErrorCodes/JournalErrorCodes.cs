@@ -56,4 +56,13 @@ public static class JournalErrorCodes
 
     /// <summary>The referenced journal entry does not exist (SDD-FIN-002 §2.9).</summary>
     public const string JOURNAL_ENTRY_NOT_FOUND = nameof(JOURNAL_ENTRY_NOT_FOUND);
+
+    /// <summary>
+    /// A general-ledger date window is invalid: <c>fromDate &gt; toDate</c>, <c>fromDate &gt; asOfDate</c>,
+    /// or a required as-of date is missing (SDD-FIN-003 §4).
+    /// </summary>
+    public const string INVALID_DATE_RANGE = nameof(INVALID_DATE_RANGE);
+
+    /// <summary>A general-ledger account-ledger route <c>accountId</c> is not a positive integer (SDD-FIN-003 §4).</summary>
+    public const string INVALID_ACCOUNT_ID = nameof(INVALID_ACCOUNT_ID);
 }

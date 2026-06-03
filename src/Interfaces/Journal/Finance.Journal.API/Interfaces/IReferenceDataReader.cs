@@ -26,4 +26,18 @@ public interface IReferenceDataReader
     /// <param name="cancellationToken">A token to observe for cancellation.</param>
     /// <returns><see langword="true"/> when the currency is valid and active; otherwise <see langword="false"/>.</returns>
     Task<bool> IsCurrencyActiveAsync(string currencyCode, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Resolves the display <c>code</c> / <c>name</c> for a set of accounts so the GL / trial-balance read
+    /// path can enrich its rows without an N-per-account round-trip (SDD-FIN-003 §2.5). The lookup is
+    /// resilient: an account whose read fails or is missing is simply omitted from the returned map, so the
+    /// caller still surfaces that account's numeric balances with a null code/name. Enrichment MUST NOT
+    /// fail the whole query.
+    /// </summary>
+    /// <param name="accountIds">The distinct account identifiers to resolve.</param>
+    /// <param name="cancellationToken">A token to observe for cancellation.</param>
+    /// <returns>A map from account identifier to its resolved <see cref="AccountReference"/>; missing accounts are absent.</returns>
+    Task<IReadOnlyDictionary<int, AccountReference>> GetAccountReferencesAsync(
+        IReadOnlyCollection<int> accountIds,
+        CancellationToken cancellationToken);
 }

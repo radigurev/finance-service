@@ -12,6 +12,20 @@ public sealed class FakeReferenceDataReader : IReferenceDataReader
 {
     private readonly HashSet<int> _notPostableAccounts = [];
     private readonly HashSet<string> _inactiveCurrencies = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<int, AccountReference> _accountReferences = [];
+
+    /// <summary>
+    /// Registers the display <c>code</c> / <c>name</c> returned by <see cref="GetAccountReferencesAsync"/>
+    /// for an account (SDD-FIN-003 §2.5). Accounts without a registration are omitted from the returned map,
+    /// simulating a degraded / unreachable enrichment read.
+    /// </summary>
+    /// <param name="accountId">The account id to register.</param>
+    /// <param name="code">The account code to return.</param>
+    /// <param name="name">The account name to return.</param>
+    public void RegisterAccountReference(int accountId, string code, string name)
+    {
+        _accountReferences[accountId] = new AccountReference(code, name);
+    }
 
     /// <summary>Marks an account id as missing/inactive so it fails the postability check.</summary>
     /// <param name="accountId">The account id to treat as not postable.</param>
@@ -37,5 +51,22 @@ public sealed class FakeReferenceDataReader : IReferenceDataReader
     public Task<bool> IsCurrencyActiveAsync(string currencyCode, CancellationToken cancellationToken)
     {
         return Task.FromResult(!_inactiveCurrencies.Contains(currencyCode));
+    }
+
+    /// <inheritdoc />
+    public Task<IReadOnlyDictionary<int, AccountReference>> GetAccountReferencesAsync(
+        IReadOnlyCollection<int> accountIds,
+        CancellationToken cancellationToken)
+    {
+        Dictionary<int, AccountReference> resolved = [];
+        foreach (int accountId in accountIds)
+        {
+            if (_accountReferences.TryGetValue(accountId, out AccountReference? reference))
+            {
+                resolved[accountId] = reference;
+            }
+        }
+
+        return Task.FromResult<IReadOnlyDictionary<int, AccountReference>>(resolved);
     }
 }

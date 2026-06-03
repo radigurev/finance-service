@@ -80,4 +80,48 @@ public sealed class GatewayReferenceDataReader : IReferenceDataReader
             return false;
         }
     }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyDictionary<int, AccountReference>> GetAccountReferencesAsync(
+        IReadOnlyCollection<int> accountIds,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(accountIds);
+
+        Dictionary<int, AccountReference> resolved = new(accountIds.Count);
+        foreach (int accountId in accountIds.Distinct())
+        {
+            AccountReference? reference = await ResolveAccountReferenceAsync(accountId, cancellationToken)
+                .ConfigureAwait(false);
+            if (reference is not null)
+            {
+                resolved[accountId] = reference;
+            }
+        }
+
+        return resolved;
+    }
+
+    private async Task<AccountReference?> ResolveAccountReferenceAsync(
+        int accountId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            AccountDto account = await _accounts.GetAccountAsync(accountId, cancellationToken).ConfigureAwait(false);
+            return new AccountReference(account.Code, account.Name);
+        }
+        catch (ApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+        catch (ApiException ex)
+        {
+            _logger.LogWarning(
+                ex,
+                "Account enrichment read failed for account {AccountId}; row will be returned without code/name.",
+                accountId);
+            return null;
+        }
+    }
 }

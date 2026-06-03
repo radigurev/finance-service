@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Finance.Common\Finance.Common.csproj" />
+    <ProjectReference Include="..\Finance.GenericFiltering\Finance.GenericFiltering.csproj" />
   </ItemGroup>
 
 </Project>

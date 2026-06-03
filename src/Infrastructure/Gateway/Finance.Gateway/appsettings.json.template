@@ -96,6 +96,18 @@
           "Path": "/api/v1/journal-entries/{**catch-all}"
         }
       },
+      "trial-balance-route": {
+        "ClusterId": "journal-cluster",
+        "Match": {
+          "Path": "/api/v1/trial-balance/{**catch-all}"
+        }
+      },
+      "general-ledger-route": {
+        "ClusterId": "journal-cluster",
+        "Match": {
+          "Path": "/api/v1/general-ledger/{**catch-all}"
+        }
+      },
       "periods-route": {
         "ClusterId": "periods-cluster",
         "Match": {

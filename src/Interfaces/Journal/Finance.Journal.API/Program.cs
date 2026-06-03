@@ -91,6 +91,7 @@ static void ConfigureServices(WebApplicationBuilder builder)
     services.AddScoped<ICurrentUserAccessor, HttpContextCurrentUserAccessor>();
     services.AddScoped<IJournalEntryValidator, JournalEntryValidator>();
     services.AddScoped<IJournalEntryService, JournalEntryService>();
+    services.AddScoped<IGeneralLedgerService, GeneralLedgerService>();
 
     ConfigureWorkflow(services);
     ConfigureValidationChain(services);

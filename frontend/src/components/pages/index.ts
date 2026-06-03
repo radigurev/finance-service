@@ -4,3 +4,5 @@ export { CurrenciesListPage } from './CurrenciesListPage';
 export { ExchangeRatesPage } from './ExchangeRatesPage';
 export { JournalEntriesListPage } from './JournalEntriesListPage';
 export { FiscalPeriodsListPage } from './FiscalPeriodsListPage';
+export { TrialBalancePage } from './TrialBalancePage';
+export { AccountLedgerPage } from './AccountLedgerPage';

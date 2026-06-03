@@ -6,7 +6,9 @@ import {
   CurrenciesListPage,
   ExchangeRatesPage,
   JournalEntriesListPage,
-  FiscalPeriodsListPage
+  FiscalPeriodsListPage,
+  TrialBalancePage,
+  AccountLedgerPage
 } from '@/components/pages';
 import { RequireAuth } from '@/features/auth/RequireAuth';
 
@@ -26,6 +28,8 @@ export function App() {
         <Route path="accounts" element={<AccountsListPage />} />
         <Route path="journal-entries" element={<JournalEntriesListPage />} />
         <Route path="periods" element={<FiscalPeriodsListPage />} />
+        <Route path="general-ledger" element={<TrialBalancePage />} />
+        <Route path="general-ledger/accounts/:accountId" element={<AccountLedgerPage />} />
         <Route path="currencies" element={<CurrenciesListPage />} />
         <Route path="exchange-rates" element={<ExchangeRatesPage />} />
       </Route>

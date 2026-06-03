@@ -18,7 +18,18 @@ namespace Finance.Journal.API.Tests.Fixtures;
 /// </summary>
 public sealed class SqliteJournalModelCustomizer : RelationalModelCustomizer
 {
+    private const decimal AmountScale = 100m;
+    private const decimal RateScale = 1000000m;
+
     private static readonly DateTimeOffsetToBinaryConverter DateTimeOffsetConverter = new();
+
+    private static readonly ValueConverter<decimal, long> AmountConverter =
+        new(value => (long)decimal.Round(value * AmountScale, 0, MidpointRounding.AwayFromZero),
+            stored => stored / AmountScale);
+
+    private static readonly ValueConverter<decimal, long> RateConverter =
+        new(value => (long)decimal.Round(value * RateScale, 0, MidpointRounding.AwayFromZero),
+            stored => stored / RateScale);
 
     /// <summary>Creates the customizer with the supplied dependencies.</summary>
     /// <param name="dependencies">The model-customizer dependencies supplied by EF Core.</param>
@@ -33,6 +44,7 @@ public sealed class SqliteJournalModelCustomizer : RelationalModelCustomizer
         base.Customize(modelBuilder, context);
 
         ApplyDateTimeOffsetConverter(modelBuilder);
+        ApplyDecimalConverters(modelBuilder);
 
         IMutableEntityType? entryType = modelBuilder.Model.FindEntityType(typeof(JournalEntry));
         if (entryType is null)
@@ -55,6 +67,25 @@ public sealed class SqliteJournalModelCustomizer : RelationalModelCustomizer
         {
             rowVersion.ValueGenerated = ValueGenerated.Never;
             rowVersion.IsConcurrencyToken = true;
+        }
+    }
+
+    private static void ApplyDecimalConverters(ModelBuilder modelBuilder)
+    {
+        foreach (IMutableEntityType entity in modelBuilder.Model.GetEntityTypes())
+        {
+            foreach (IMutableProperty property in entity.GetProperties())
+            {
+                if (property.ClrType != typeof(decimal) && property.ClrType != typeof(decimal?))
+                {
+                    continue;
+                }
+
+                string? columnType = property.GetColumnType();
+                bool isRate = columnType is not null && columnType.Contains(",6", StringComparison.OrdinalIgnoreCase);
+                property.SetValueConverter(isRate ? RateConverter : AmountConverter);
+                property.SetColumnType(null);
+            }
         }
     }
 
