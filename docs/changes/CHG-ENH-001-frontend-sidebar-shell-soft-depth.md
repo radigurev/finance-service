@@ -2,7 +2,7 @@
 
 > Created: 2026-05-31
 > Author: Frontend
-> Status: Proposed
+> Status: Implemented (merged into SDD-UI-001 v3 in Batch 9, commit 3db0357 — 2026-06-03)
 > Related specs: SDD-UI-001 (authoritative system spec being enhanced), SDD-UI-002, SDD-NOM-001, SDD-INFRA-001
 > Originating ticket: "Tweak the frontend — it's bland — and move the navbar to the left side." (user-confirmed; design panel produced the locked token set)
 

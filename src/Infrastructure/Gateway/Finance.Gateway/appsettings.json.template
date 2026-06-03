@@ -11,7 +11,8 @@
     "AuthApi": "<AUTH_API_URL>",
     "AccountsApi": "<ACCOUNTS_API_URL>",
     "NomenclatureApi": "<NOMENCLATURE_API_URL>",
-    "EventLogApi": "<EVENTLOG_API_URL>"
+    "EventLogApi": "<EVENTLOG_API_URL>",
+    "JournalApi": "<JOURNAL_API_URL>"
   },
   "Kestrel": {
     "Endpoints": {
@@ -87,6 +88,12 @@
         "Match": {
           "Path": "/api/v1/events/{**catch-all}"
         }
+      },
+      "journal-entries-route": {
+        "ClusterId": "journal-cluster",
+        "Match": {
+          "Path": "/api/v1/journal-entries/{**catch-all}"
+        }
       }
     },
     "Clusters": {
@@ -115,6 +122,13 @@
         "Destinations": {
           "eventlog-api": {
             "Address": "<EVENTLOG_API_URL>"
+          }
+        }
+      },
+      "journal-cluster": {
+        "Destinations": {
+          "journal-api": {
+            "Address": "<JOURNAL_API_URL>"
           }
         }
       }

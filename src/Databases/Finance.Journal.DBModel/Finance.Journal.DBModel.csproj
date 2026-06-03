@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.12" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.12">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="MassTransit.EntityFrameworkCore" Version="8.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Finance.Common\Finance.Common.csproj" />
+    <ProjectReference Include="..\..\Finance.GenericFiltering\Finance.GenericFiltering.csproj" />
+    <ProjectReference Include="..\..\Infrastructure\Audit\Finance.Infrastructure.Audit\Finance.Infrastructure.Audit.csproj" />
+    <ProjectReference Include="..\..\Infrastructure\Sequences\Finance.Infrastructure.Sequences\Finance.Infrastructure.Sequences.csproj" />
+  </ItemGroup>
+
+</Project>
