@@ -79,8 +79,6 @@ static void ConfigureServices(WebApplicationBuilder builder)
     services.AddHealthChecks()
         .AddDbContextCheck<PeriodsDbContext>("periods-db", tags: ["ready"]);
 
-    // The Periods domain extends the default error map for its 409 state / ordering / uniqueness codes
-    // and the 404 NO_PERIOD_FOR_DATE code (SDD-FIN-004 §5).
     services.Replace(ServiceDescriptor.Singleton<IErrorCodeToStatusMap, PeriodErrorCodeToStatusMap>());
 
     services.AddScoped<ICurrentUserAccessor, HttpContextCurrentUserAccessor>();

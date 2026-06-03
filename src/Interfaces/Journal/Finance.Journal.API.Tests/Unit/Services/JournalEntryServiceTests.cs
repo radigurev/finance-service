@@ -685,6 +685,145 @@ public sealed class JournalEntryServiceTests
         });
     }
 
+    /// <summary>
+    /// A single successful reversal writes EXACTLY two audit rows — one StateChange on the original entry and
+    /// one StateChange on the new reversal entry — per SDD-FIN-002 §2.6 step 5. Regression guard for the
+    /// Batch 11.1 fix where reversal previously recorded only the original's audit row.
+    /// </summary>
+    [Test]
+    public async Task Reverse_WritesExactlyTwoAuditRows_OneForOriginalAndOneForReversalEntry()
+    {
+        // Arrange — snapshot the audit count so we measure only the rows attributable to the reverse call.
+        JournalEntry posted = await PostedEntryAsync();
+        int auditCountAfterPost = _harness.RecordedAudits.Count;
+
+        // Act
+        Result<JournalEntryDto> result = await _harness.Service.ReverseAsync(
+            posted.Id, ReverseRequest(posted, "Double-audit guard"), CancellationToken.None);
+
+        // Assert — the reverse operation contributed precisely two audit rows.
+        Assert.That(result.IsSuccess, Is.True, result.ErrorCode);
+        IReadOnlyList<AuditEntry> reversalAudits =
+            _harness.RecordedAudits.Skip(auditCountAfterPost).ToList();
+        Assert.That(reversalAudits, Has.Count.EqualTo(2));
+
+        AuditEntry originalRow =
+            reversalAudits.Single(audit => audit.EntityId == posted.Id.ToString());
+        AuditEntry reversalRow =
+            reversalAudits.Single(audit => audit.EntityId == result.Value!.Id.ToString());
+        Assert.Multiple(() =>
+        {
+            Assert.That(originalRow.EventType, Is.EqualTo(JournalAuditEventTypes.JournalEntryReversed));
+            Assert.That(originalRow.Operation, Is.EqualTo(AuditOperation.StateChange));
+            Assert.That(reversalRow.EventType, Is.EqualTo(JournalAuditEventTypes.JournalEntryPosted));
+            Assert.That(reversalRow.Operation, Is.EqualTo(AuditOperation.StateChange));
+        });
+    }
+
+    /// <summary>
+    /// The reversal-entry audit row records a Posted snapshot for the new sign-flipped entry: a null
+    /// before-snapshot (the reversal did not exist beforehand), a non-null after-snapshot, and the reason
+    /// carried through (SDD-FIN-002 §2.6 step 5).
+    /// </summary>
+    [Test]
+    public async Task Reverse_ReversalEntryAuditRow_HasNullBefore_NonNullAfter_AndCarriesReason()
+    {
+        // Arrange
+        JournalEntry posted = await PostedEntryAsync();
+        int auditCountAfterPost = _harness.RecordedAudits.Count;
+
+        // Act
+        Result<JournalEntryDto> result = await _harness.Service.ReverseAsync(
+            posted.Id, ReverseRequest(posted, "New-entry snapshot"), CancellationToken.None);
+
+        // Assert
+        Assert.That(result.IsSuccess, Is.True, result.ErrorCode);
+        AuditEntry reversalRow = _harness.RecordedAudits
+            .Skip(auditCountAfterPost)
+            .Single(audit => audit.EntityId == result.Value!.Id.ToString());
+        Assert.Multiple(() =>
+        {
+            Assert.That(reversalRow.EntityId, Is.EqualTo(result.Value!.Id.ToString()));
+            Assert.That(reversalRow.EventType, Is.EqualTo(JournalAuditEventTypes.JournalEntryPosted));
+            Assert.That(reversalRow.Operation, Is.EqualTo(AuditOperation.StateChange));
+            Assert.That(reversalRow.BeforeJson, Is.Null);
+            Assert.That(reversalRow.AfterJson, Is.Not.Null);
+            Assert.That(reversalRow.Reason, Is.EqualTo("New-entry snapshot"));
+        });
+    }
+
+    /// <summary>
+    /// The original-entry audit row records the Posted → Reversed transition with a non-null before-snapshot
+    /// (the pre-reversal Posted state) and a non-null after-snapshot (the Reversed state), keyed to the
+    /// original's id (SDD-FIN-002 §2.6 step 5).
+    /// </summary>
+    [Test]
+    public async Task Reverse_OriginalEntryAuditRow_HasBeforeAndAfterSnapshots_KeyedToOriginalId()
+    {
+        // Arrange
+        JournalEntry posted = await PostedEntryAsync();
+        int auditCountAfterPost = _harness.RecordedAudits.Count;
+
+        // Act
+        await _harness.Service.ReverseAsync(
+            posted.Id, ReverseRequest(posted, "Original snapshot"), CancellationToken.None);
+
+        // Assert
+        AuditEntry originalRow = _harness.RecordedAudits
+            .Skip(auditCountAfterPost)
+            .Single(audit => audit.EntityId == posted.Id.ToString());
+        Assert.Multiple(() =>
+        {
+            Assert.That(originalRow.EntityId, Is.EqualTo(posted.Id.ToString()));
+            Assert.That(originalRow.EventType, Is.EqualTo(JournalAuditEventTypes.JournalEntryReversed));
+            Assert.That(originalRow.Operation, Is.EqualTo(AuditOperation.StateChange));
+            Assert.That(originalRow.BeforeJson, Is.Not.Null);
+            Assert.That(originalRow.AfterJson, Is.Not.Null);
+            Assert.That(originalRow.Reason, Is.EqualTo("Original snapshot"));
+        });
+    }
+
+    /// <summary>
+    /// Both reversal audit rows are recorded BEFORE the JournalEntryReversedEvent is published, preserving the
+    /// audit-first ordering required by SDD-AUDIT-001 §2.4 (mirrors Post_RecordsAuditStateChange_BeforeOutboxPublish).
+    /// </summary>
+    [Test]
+    public async Task Reverse_RecordsBothAuditRows_BeforeOutboxPublish()
+    {
+        // Arrange — capture the order audits and events arrive so we can assert both audits precede the publish.
+        JournalEntry posted = await PostedEntryAsync();
+        int auditCountAfterPost = _harness.RecordedAudits.Count;
+        List<string> sequence = [];
+        _harness.AuditMock
+            .Setup(a => a.RecordAsync(It.IsAny<AuditEntry>(), It.IsAny<CancellationToken>(), It.IsAny<bool>()))
+            .Callback<AuditEntry, CancellationToken, bool>((entry, _, _) =>
+            {
+                _harness.RecordedAudits.Add(entry);
+                sequence.Add("audit");
+            })
+            .ReturnsAsync(Result.Success());
+        _harness.PublishMock
+            .Setup(p => p.Publish(It.IsAny<JournalEntryReversedEvent>(), It.IsAny<CancellationToken>()))
+            .Callback<JournalEntryReversedEvent, CancellationToken>((message, _) =>
+            {
+                _harness.PublishedEvents.Add(message);
+                sequence.Add("publish");
+            })
+            .Returns(Task.CompletedTask);
+
+        // Act
+        Result<JournalEntryDto> result = await _harness.Service.ReverseAsync(
+            posted.Id, ReverseRequest(posted, "Audit-first ordering"), CancellationToken.None);
+
+        // Assert — two audits, then the publish.
+        Assert.That(result.IsSuccess, Is.True, result.ErrorCode);
+        Assert.That(_harness.RecordedAudits.Skip(auditCountAfterPost).Count(), Is.EqualTo(2));
+        Assert.Multiple(() =>
+        {
+            Assert.That(sequence, Is.EqualTo(new[] { "audit", "audit", "publish" }));
+        });
+    }
+
     /// <summary>Reversal publishes JournalEntryReversedEvent with original and reversal ids (§2.11, §6.3).</summary>
     [Test]
     public async Task Reverse_PublishesJournalEntryReversedEvent_WithOriginalAndReversalIds()

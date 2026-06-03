@@ -205,6 +205,37 @@ public sealed class AuditServiceTests
         Assert.That(result.ErrorCode, Is.EqualTo(AuditErrorCodes.AUDIT_REASON_REQUIRED));
     }
 
+    /// <summary>
+    /// The Periods fiscal-period close and reopen event types are on the mandatory-reason list (Fix #5c,
+    /// SDD-FIN-004 §2.4-§2.5, SDD-AUDIT-001 §3): recording either without a reason fails with
+    /// AUDIT_REASON_REQUIRED and persists nothing.
+    /// </summary>
+    [TestCase(SensitiveAuditEventTypes.FiscalPeriodClosed)]
+    [TestCase(SensitiveAuditEventTypes.FiscalPeriodReopened)]
+    public async Task RecordAsync_ReturnsFailure_WhenReasonMissing_ForFiscalPeriodEvent(string eventType)
+    {
+        // Arrange
+        AuditEntry entry = new AuditEntryBuilder()
+            .WithEventType(eventType)
+            .WithOperation(AuditOperation.StateChange)
+            .WithBeforeJson("{\"state\":\"Open\"}")
+            .WithReason(null)
+            .Build();
+
+        // Act
+        Result result = await _service.RecordAsync(entry, CancellationToken.None, saveChanges: true);
+
+        // Assert
+        int trackedCount = _context.ChangeTracker.Entries<OperationsEvent>().Count();
+        Assert.Multiple(() =>
+        {
+            Assert.That(SensitiveAuditEventTypes.RequiresReason(eventType), Is.True);
+            Assert.That(result.IsSuccess, Is.False);
+            Assert.That(result.ErrorCode, Is.EqualTo(AuditErrorCodes.AUDIT_REASON_REQUIRED));
+            Assert.That(trackedCount, Is.EqualTo(0));
+        });
+    }
+
     /// <summary>A null audit entry is rejected with an ArgumentNullException.</summary>
     [Test]
     public void RecordAsync_NullEntry_ThrowsArgumentNullException()

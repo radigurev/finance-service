@@ -54,6 +54,10 @@ public sealed class GatewayPostingPeriodGuard : IPostingPeriodGuard
                 JournalErrorCodes.POSTING_PERIOD_CLOSED,
                 "No fiscal period is defined for the entry date.");
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             _logger.LogWarning(

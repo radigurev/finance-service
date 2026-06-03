@@ -4,10 +4,11 @@ using Finance.Journal.API.Interfaces;
 namespace Finance.Journal.API.Services;
 
 /// <summary>
-/// Batch-10 default <see cref="IPostingPeriodGuard"/> that treats every period as open (SDD-FIN-002 §2.7).
-/// It exists so posting works end-to-end while SDD-FIN-004 (Fiscal Period Management) is unbuilt. When
-/// SDD-FIN-004 ships it replaces this registration with a real period-status lookup that returns
-/// <c>POSTING_PERIOD_CLOSED</c> for closed/locked periods — no change to the posting code is required.
+/// Test-only fallback <see cref="IPostingPeriodGuard"/> that treats every period as open (SDD-FIN-002 §2.7).
+/// Production registers <see cref="Finance.Journal.API.Workflow.GatewayPostingPeriodGuard"/>, which performs
+/// the real period-status lookup against the Periods service and returns <c>POSTING_PERIOD_CLOSED</c> for
+/// closed/locked periods (SDD-FIN-004). This guard exists only so unit tests can post without standing up
+/// the Periods service.
 /// </summary>
 public sealed class AlwaysOpenPostingPeriodGuard : IPostingPeriodGuard
 {

@@ -47,7 +47,7 @@ public abstract class SearchableServiceBase<TEntity, TDto, TContext> : BaseEntit
     /// <param name="request">The client-supplied filter, sort, and pagination request.</param>
     /// <param name="ct">A token to observe for cancellation.</param>
     /// <returns>A success result carrying the page, or a failure carrying the filter error code.</returns>
-    public async Task<Result<PagedResult<TDto>>> SearchAsync(FilterRequest request, CancellationToken ct)
+    public virtual async Task<Result<PagedResult<TDto>>> SearchAsync(FilterRequest request, CancellationToken ct)
     {
         try
         {

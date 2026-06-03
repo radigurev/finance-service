@@ -2,13 +2,19 @@ namespace Finance.Infrastructure.Audit;
 
 /// <summary>
 /// Canonical set of high-sensitivity audit <c>EventType</c> values that MUST carry an operator-supplied
-/// reason (SDD-AUDIT-001 §3): period close, journal reversal, account deactivation, and permission
-/// revocation. Recording any of these without a reason fails with <c>AUDIT_REASON_REQUIRED</c>.
+/// reason (SDD-AUDIT-001 §3): period close, period reopen, journal reversal, account deactivation, and
+/// permission revocation. Recording any of these without a reason fails with <c>AUDIT_REASON_REQUIRED</c>.
 /// </summary>
 public static class SensitiveAuditEventTypes
 {
     /// <summary>Fiscal period transition into a closed state.</summary>
     public const string PeriodClosed = nameof(PeriodClosed);
+
+    /// <summary>Fiscal period close event type emitted by the Periods service (SDD-FIN-004 §2.4).</summary>
+    public const string FiscalPeriodClosed = nameof(FiscalPeriodClosed);
+
+    /// <summary>Fiscal period reopen event type emitted by the Periods service (SDD-FIN-004 §2.5).</summary>
+    public const string FiscalPeriodReopened = nameof(FiscalPeriodReopened);
 
     /// <summary>Reversal of a previously posted journal entry.</summary>
     public const string JournalEntryReversed = nameof(JournalEntryReversed);
@@ -22,6 +28,8 @@ public static class SensitiveAuditEventTypes
     private static readonly HashSet<string> Values = new(StringComparer.Ordinal)
     {
         PeriodClosed,
+        FiscalPeriodClosed,
+        FiscalPeriodReopened,
         JournalEntryReversed,
         AccountDeactivated,
         PermissionRevoked,

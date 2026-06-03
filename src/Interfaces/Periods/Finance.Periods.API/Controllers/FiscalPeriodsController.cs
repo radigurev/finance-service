@@ -104,7 +104,7 @@ public sealed class FiscalPeriodsController : BaseApiController
     /// <returns>The generated periods, or a duplicate / validation ProblemDetails.</returns>
     [HttpPost("generate")]
     [RequirePermission("finance.period:create")]
-    [ProducesResponseType(typeof(IReadOnlyList<FiscalPeriodDto>), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(IReadOnlyList<FiscalPeriodDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<ActionResult<IReadOnlyList<FiscalPeriodDto>>> Generate(
@@ -113,13 +113,7 @@ public sealed class FiscalPeriodsController : BaseApiController
     {
         Result<IReadOnlyList<FiscalPeriodDto>> result =
             await _periods.GenerateAsync(request, cancellationToken).ConfigureAwait(false);
-
-        if (!result.IsSuccess)
-        {
-            return ToActionResult(result);
-        }
-
-        return CreatedAtAction(nameof(List), null, result.Value);
+        return ToActionResult(result);
     }
 
     /// <summary>Creates a single fiscal period explicitly (SDD-FIN-004 §2.3).</summary>

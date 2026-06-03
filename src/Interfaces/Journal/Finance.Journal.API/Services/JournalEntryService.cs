@@ -74,7 +74,7 @@ public sealed class JournalEntryService
     }
 
     /// <inheritdoc cref="IJournalEntryService.SearchAsync" />
-    public new Task<Result<PagedResult<JournalEntryDto>>> SearchAsync(
+    public override Task<Result<PagedResult<JournalEntryDto>>> SearchAsync(
         FilterRequest request,
         CancellationToken cancellationToken)
     {
@@ -230,13 +230,6 @@ public sealed class JournalEntryService
         }
 
         return await ReverseInTransactionAsync(original, request.Reason, cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <summary>Default-orders the list by descending <c>EntryDate</c> (SDD-FIN-002 §2.9).</summary>
-    /// <returns>A non-tracking ordered query over the entry set.</returns>
-    protected override IQueryable<JournalEntry> BuildBaseQuery()
-    {
-        return base.BuildBaseQuery().OrderByDescending(entry => entry.EntryDate);
     }
 
     private async Task<Result> ValidateEntryAsync(JournalEntry entry, CancellationToken cancellationToken)
@@ -623,21 +616,34 @@ public sealed class JournalEntryService
         return flipped;
     }
 
-    private Task<Result> RecordReversalAuditAsync(
+    private async Task<Result> RecordReversalAuditAsync(
         JournalEntry original,
         string originalBefore,
         JournalEntry reversal,
         string reason,
         CancellationToken cancellationToken)
     {
-        return RecordAuditAsync(
+        Result originalAudited = await RecordAuditAsync(
             JournalAuditEventTypes.JournalEntryReversed,
             AuditOperation.StateChange,
             original,
             originalBefore,
             SerializeEntry(original),
             reason,
-            cancellationToken);
+            cancellationToken).ConfigureAwait(false);
+        if (!originalAudited.IsSuccess)
+        {
+            return originalAudited;
+        }
+
+        return await RecordAuditAsync(
+            JournalAuditEventTypes.JournalEntryPosted,
+            AuditOperation.StateChange,
+            reversal,
+            beforeJson: null,
+            SerializeEntry(reversal),
+            reason,
+            cancellationToken).ConfigureAwait(false);
     }
 
     private Task<Result> RecordAuditAsync(
