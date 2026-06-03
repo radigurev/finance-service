@@ -4,7 +4,9 @@ import {
   LoginPage,
   AccountsListPage,
   CurrenciesListPage,
-  ExchangeRatesPage
+  ExchangeRatesPage,
+  JournalEntriesListPage,
+  FiscalPeriodsListPage
 } from '@/components/pages';
 import { RequireAuth } from '@/features/auth/RequireAuth';
 
@@ -22,6 +24,8 @@ export function App() {
       >
         <Route index element={<Navigate to="/accounts" replace />} />
         <Route path="accounts" element={<AccountsListPage />} />
+        <Route path="journal-entries" element={<JournalEntriesListPage />} />
+        <Route path="periods" element={<FiscalPeriodsListPage />} />
         <Route path="currencies" element={<CurrenciesListPage />} />
         <Route path="exchange-rates" element={<ExchangeRatesPage />} />
       </Route>
