@@ -1,6 +1,6 @@
 # SDD-INFRA-007 — Validation Chain
 
-> Status: Active (Batch 1 — `Finance.Common/Validation` chain mechanic + unit tests shipping; domain validators deferred to their owning microservices)
+> Status: Implemented (Batch 1 — `Finance.Common/Validation` chain mechanic + unit tests shipping; domain validators deferred to their owning microservices)
 > Owner: Platform
 > Last updated: 2026-05-30
 > Category: Infrastructure

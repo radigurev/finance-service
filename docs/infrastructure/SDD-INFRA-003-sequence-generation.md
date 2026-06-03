@@ -1,6 +1,6 @@
 # SDD-INFRA-003 — Centralized Sequence Generation (Auto-Code)
 
-> Status: Active (library: entity + config + generator + DI). Deferred: per-service `infrastructure.Sequences` table/migration (Batch 4+), `ICountryStrategy` format integration (until SDD-CTRY-001 is authored).
+> Status: Implemented (library: entity + config + generator + DI). Deferred: per-service `infrastructure.Sequences` table/migration (Batch 4+), `ICountryStrategy` format integration (until SDD-CTRY-001 is authored).
 > Owner: Platform
 > Last updated: 2026-05-30
 > Category: Infrastructure

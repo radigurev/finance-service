@@ -1,6 +1,6 @@
 # SDD-INFRA-001 — Cross-Cutting Foundations (Correlation, ProblemDetails, NLog, Versioning)
 
-> Status: Active (Batch 2 — the shared `Finance.Infrastructure.Web` library ships the ProblemDetails customization, `IErrorCodeToStatusMap`, `GlobalExceptionHandler`, `ICorrelationIdAccessor` HTTP implementation, and the `AddFinanceServiceDefaults` / `UseFinanceServiceDefaults` host bundle. NLog → Loki, API versioning, and health checks are already wired in `Finance.Accounts.API` + `Finance.Gateway`.)
+> Status: Implemented (Batch 2 — the shared `Finance.Infrastructure.Web` library ships the ProblemDetails customization, `IErrorCodeToStatusMap`, `GlobalExceptionHandler`, `ICorrelationIdAccessor` HTTP implementation, and the `AddFinanceServiceDefaults` / `UseFinanceServiceDefaults` host bundle. NLog → Loki, API versioning, and health checks are already wired in `Finance.Accounts.API` + `Finance.Gateway`.)
 > Owner: Platform
 > Last updated: 2026-05-30
 > Related: SDD-INT-AUTH-001, SDD-INFRA-002, SDD-INFRA-009, SDD-OBS-001

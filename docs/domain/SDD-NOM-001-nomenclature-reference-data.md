@@ -1,6 +1,6 @@
 # SDD-NOM-001 — Nomenclature Reference Data
 
-> Status: Active (Batch 5 — currency CRUD + exchange-rate read + Warehouse country/state/city proxy ship; rate WRITE/BNB import, S2S JWT, and the React `useNomenclature()` hook are explicitly deferred)
+> Status: Implemented (Batch 5 — currency CRUD + exchange-rate read + Warehouse country/state/city proxy ship; rate WRITE/BNB import, S2S JWT, and the React `useNomenclature()` hook are explicitly deferred)
 > Owner: Platform
 > Last updated: 2026-05-30
 > Category: Domain

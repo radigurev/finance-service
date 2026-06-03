@@ -1,6 +1,6 @@
 # SDD-FIN-002 — Journal Entry Lifecycle (Draft → Posted → Reversed)
 
-> Status: Active (Batch 10 — manual journal entries: double-entry invariants + Draft→Posted→Reversed lifecycle. Period-lock guard is an extension seam pending SDD-FIN-004; posting rules (FIN-006) and GL/trial-balance (FIN-003) are deferred.)
+> Status: Implemented (Batch 10 — manual journal entries: double-entry invariants + Draft→Posted→Reversed lifecycle. Period-lock guard is an extension seam pending SDD-FIN-004; posting rules (FIN-006) and GL/trial-balance (FIN-003) are deferred.)
 > Owner: Finance
 > Last updated: 2026-06-03
 > Category: Core

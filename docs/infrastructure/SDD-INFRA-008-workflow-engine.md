@@ -1,6 +1,6 @@
 # SDD-INFRA-008 — Workflow Engine (State Machine)
 
-> Status: Active (Batch 2 — the concrete `WorkflowEngine<TAggregate>` + `AddWorkflowEngine<TAggregate>()` ship in `Finance.Infrastructure.Services`, with per-aggregate keyed state registration. The Batch-1 interfaces + `WorkflowContext` + `WorkflowErrorCodes` remain in `Finance.Common/Workflow`. In v1 the engine validates + runs hooks while the calling service owns `SaveChanges` / `RowVersion` / status-history — see §2.2.)
+> Status: Implemented (Batch 2 — the concrete `WorkflowEngine<TAggregate>` + `AddWorkflowEngine<TAggregate>()` ship in `Finance.Infrastructure.Services`, with per-aggregate keyed state registration. The Batch-1 interfaces + `WorkflowContext` + `WorkflowErrorCodes` remain in `Finance.Common/Workflow`. In v1 the engine validates + runs hooks while the calling service owns `SaveChanges` / `RowVersion` / status-history — see §2.2.)
 > Owner: Platform
 > Last updated: 2026-05-30
 > Category: Infrastructure

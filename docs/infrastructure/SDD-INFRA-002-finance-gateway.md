@@ -1,6 +1,6 @@
 # SDD-INFRA-002 — Finance Gateway (YARP)
 
-> Status: Active (Batch 7 — config-driven YARP gateway shipped; startup validation + dynamic per-cluster health aggregation added; business-logic-free)
+> Status: Implemented (Batch 7 — config-driven YARP gateway shipped; startup validation + dynamic per-cluster health aggregation added; business-logic-free)
 > Owner: Platform
 > Related: SDD-INT-AUTH-001, SDD-INFRA-001
 > ISA-95: Cross-cutting

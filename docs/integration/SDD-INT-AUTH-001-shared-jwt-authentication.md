@@ -1,6 +1,6 @@
 # SDD-INT-AUTH-001 — Shared JWT Authentication with auth-service
 
-> Status: Active (Batch 7 — Finance-owned JWT config validation shipped and called by every service; per-endpoint RBAC live since Batch 4; Phase-1 permission auto-registration remains deferred)
+> Status: Implemented (Batch 7 — Finance-owned JWT config validation shipped and called by every service; per-endpoint RBAC live since Batch 4; Phase-1 permission auto-registration remains deferred)
 > Owner: Platform
 > Related: SDD-INFRA-001, SDD-INFRA-002, SDD-ACCT-001
 > ISA-95: Level 4 cross-cutting (Personnel Model — federated)

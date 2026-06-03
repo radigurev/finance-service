@@ -1,6 +1,6 @@
 # SDD-OBS-001 — Observability (Logs, Traces, Metrics)
 
-> Status: Active (Batch 2 — OpenTelemetry tracing ships now via `AddFinanceObservability(config)` in `Finance.Infrastructure.Web`: ASP.NET Core + HttpClient + EF Core instrumentation, OTLP exporter, and the `correlation_id` Activity tag. NLog → Loki is already wired in `Finance.Accounts.API` + `Finance.Gateway`. Prometheus `/metrics` + Grafana dashboards remain a Phase-7 SHOULD and are deferred — see §2.5–2.6.)
+> Status: Implemented (Batch 2 — OpenTelemetry tracing ships now via `AddFinanceObservability(config)` in `Finance.Infrastructure.Web`: ASP.NET Core + HttpClient + EF Core instrumentation, OTLP exporter, and the `correlation_id` Activity tag. NLog → Loki is already wired in `Finance.Accounts.API` + `Finance.Gateway`. Prometheus `/metrics` + Grafana dashboards remain a Phase-7 SHOULD and are deferred — see §2.5–2.6.)
 > Owner: Platform
 > Last updated: 2026-05-30
 > Category: Infrastructure

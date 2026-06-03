@@ -1,6 +1,6 @@
 # SDD-UI-001 — Frontend Shell (React + MUI + i18n + Density + Ledger Theme)
 
-> Status: Active (v3 — "Ledger, Bound in Green": nav moved to a fixed left sidebar + slim flat top bar; bounded soft-depth/color relaxations of the §2.8 prohibitions. Builds on Batch 8 — ledger aesthetic + Atomic Design folders + shared hooks; Accounts adopts the PagedResult/FilterRequest contract with CRUD dialogs; Currencies CRUD + exchange-rate view + `useNomenclature()` dropdowns)
+> Status: Implemented (v3 — "Ledger, Bound in Green": nav moved to a fixed left sidebar + slim flat top bar; bounded soft-depth/color relaxations of the §2.8 prohibitions. Builds on Batch 8 — ledger aesthetic + Atomic Design folders + shared hooks; Accounts adopts the PagedResult/FilterRequest contract with CRUD dialogs; Currencies CRUD + exchange-rate view + `useNomenclature()` dropdowns)
 > Last updated: 2026-05-31 (v3 — CHG-ENH-001 sidebar shell + soft depth/color, non-breaking/visual)
 > Owner: Frontend
 > Related: SDD-INT-AUTH-001, SDD-INFRA-002, SDD-ACCT-001, SDD-NOM-001, SDD-INFRA-001, SDD-INFRA-005, SDD-AUDIT-001, SDD-UI-002, CHG-ENH-001

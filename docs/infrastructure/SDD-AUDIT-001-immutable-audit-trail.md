@@ -1,6 +1,6 @@
 # SDD-AUDIT-001 — Immutable Audit Trail
 
-> Status: Active (library write-path: `IAuditService`, `AuditService<TContext>`, `IAuditDbContext`, `OperationsEvent` entity + config, `AuditEntry`, `AddFinanceAudit<TContext>`). Deferred: export endpoint, frontend audit panel, Parquet archival, DB-level INSERT-only grants/migration (Batch 4+), nightly tamper verification.
+> Status: Implemented (library write-path: `IAuditService`, `AuditService<TContext>`, `IAuditDbContext`, `OperationsEvent` entity + config, `AuditEntry`, `AddFinanceAudit<TContext>`). Deferred: export endpoint, frontend audit panel, Parquet archival, DB-level INSERT-only grants/migration (Batch 4+), nightly tamper verification.
 > Owner: Finance / Compliance
 > Last updated: 2026-05-30
 > Category: Infrastructure

@@ -31,6 +31,15 @@
 
 Phases 1–5 always run. Phases 6–7 run only when `involves_frontend == true`.
 
+**System-spec status transitions across the pipeline** (overrides the persona's generic `Draft/Active/Deprecated`):
+
+- Phase 1 (spec-writer) authors a new SDD as **`Drafted`**.
+- When the spec is accepted and work begins, it becomes **`Active`** ("committed — will be built to the end; should be implemented"). May be partially or not-yet built.
+- After Phase 3 (test) and Phase 4 (validate) pass, it becomes **`Implemented`** (code shipped + tests pass + in force). A spec whose **core** behavior is shipped + tested is `Implemented` even with explicit `Deferred:` notes for later-phase sub-items.
+- `Deprecated` is the terminal retired/superseded state.
+
+See `docs/README.md` → "Status lifecycle" for the authoritative table.
+
 **Precedence:** `CLAUDE.md > persona-database > persona-dotnet8-microservices > csharp-persona > doc-governance`.
 
 ---
@@ -162,7 +171,7 @@ Each functional module is a microservice: Accounts, Periods, Currency, Journal, 
 
 ### Tier 1 — System Specs (`SDD-*`)
 
-Describe current implemented behavior. Source of truth.
+Describe the committed, in-force behavior of the platform. Source of truth. Status lifecycle: **`Drafted` → `Active` → `Implemented`** (+ `Deprecated` terminal) — see §0 and `docs/README.md` for the authoritative definitions. `Active` ≠ "done"; it means committed/will-be-built. `Implemented` = shipped + tests pass.
 
 | Category | Folder | Purpose |
 |---|---|---|

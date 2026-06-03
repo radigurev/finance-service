@@ -1,6 +1,6 @@
 # SDD-INFRA-005 — Generic Filtering
 
-> Status: Active (Batch 1 — `Finance.GenericFiltering` library + unit tests shipping; real-SQL-Server integration test deferred)
+> Status: Implemented (Batch 1 — `Finance.GenericFiltering` library + unit tests shipping; real-SQL-Server integration test deferred)
 > Owner: Platform
 > Last updated: 2026-05-30
 > Category: Infrastructure

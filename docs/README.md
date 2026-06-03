@@ -5,7 +5,18 @@ This folder holds the Specification-Driven Development (SDD) documents for the F
 ## Two-Tier Structure
 
 ### Tier 1 — System Specs (`SDD-*`)
-Describe **current implemented behavior**. They are the source of truth that tests and code must align with.
+Describe the **committed, in-force behavior** of the platform. They are the source of truth that tests and code must align with.
+
+**Status lifecycle (a progression):**
+
+| Status | Meaning | Set when |
+|---|---|---|
+| `Drafted` | Spec authored; may still change or be dropped. Not yet committed. | spec-writer (Phase 1) output |
+| `Active` | Accepted and committed — this **will** be built to the end; it **should** be implemented. May be partially or not-yet built. | the spec is accepted / work begins |
+| `Implemented` | Code shipped **and** tests pass and the behavior is in force. A spec whose **core** behavior is shipped + tested is `Implemented` even if it carries explicit `Deferred:` notes for later-phase sub-items. | after the test + validate phases (Phase 3–4) pass |
+| `Deprecated` | Retired or superseded; no longer in force. | the behavior is removed/replaced |
+
+The pipeline drives the transitions: spec-writer authors as `Drafted`; the spec becomes `Active` once committed/in-progress; it becomes `Implemented` only after Phase 3 (test) and Phase 4 (validate) pass. (This overrides the generic `Draft / Active / Deprecated` vocabulary in the global `doc-governance` persona for this repo.)
 
 | Folder | Scope |
 |---|---|

@@ -1,6 +1,6 @@
 # SDD-ACCT-001 — Chart of Accounts
 
-> Status: Active
+> Status: Implemented
 > Owner: Finance
 > Related: SDD-INFRA-001 (correlation, ProblemDetails, error-code mapping), SDD-INFRA-004 (Redis cache), SDD-INFRA-005 (filtering/paging), SDD-INFRA-006 (MassTransit outbox + idempotency), SDD-INFRA-007 (validation chain), SDD-INFRA-009 (base service / controller helpers), SDD-AUDIT-001 (immutable audit trail), SDD-OBS-001 (observability), SDD-INT-AUTH-001 (shared JWT auth), SDD-FIN-001 (future), SDD-CTRY-001 (future)
 > ISA-95: Level 4 (Business Planning & Logistics) — reference data

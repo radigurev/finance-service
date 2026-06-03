@@ -1,6 +1,6 @@
 # SDD-INFRA-006 — Resilient Message Publisher (MassTransit + Outbox + Idempotency)
 
-> Status: Active (library: `AddFinanceMessageBus<TDbContext>`, `IdempotencyFilter<T>`, `UseFinanceIdempotency`, outbox/RabbitMQ/retry wiring; `IFinanceEvent` marker in `Finance.ServiceModel/Events/`). Deferred: per-service outbox tables/migrations (Batch 4+); concrete domain events (later batches).
+> Status: Implemented (library: `AddFinanceMessageBus<TDbContext>`, `IdempotencyFilter<T>`, `UseFinanceIdempotency`, outbox/RabbitMQ/retry wiring; `IFinanceEvent` marker in `Finance.ServiceModel/Events/`). Deferred: per-service outbox tables/migrations (Batch 4+); concrete domain events (later batches).
 > Owner: Platform
 > Last updated: 2026-05-30
 > Category: Infrastructure

@@ -1,6 +1,6 @@
 # SDD-EVTLOG-001 — Centralized Event Log Service
 
-> Status: Active (Batch 6 — operational event archive; consumes the 6 existing Finance events only)
+> Status: Implemented (Batch 6 — operational event archive; consumes the 6 existing Finance events only)
 > Owner: Platform
 > Last updated: 2026-05-30
 > Category: Infrastructure

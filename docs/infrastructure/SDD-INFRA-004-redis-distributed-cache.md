@@ -1,6 +1,6 @@
 # SDD-INFRA-004 — Redis Distributed Cache
 
-> Status: Active (library: `ICacheService<T>`, `RedisCacheService`, `AddFinanceRedisCache`, cache-aside v1). Deferred: cross-service pub/sub invalidation (Phase 5).
+> Status: Implemented (library: `ICacheService<T>`, `RedisCacheService`, `AddFinanceRedisCache`, cache-aside v1). Deferred: cross-service pub/sub invalidation (Phase 5).
 > Owner: Platform
 > Last updated: 2026-05-30
 > Category: Infrastructure

@@ -1,6 +1,6 @@
 # SDD-INFRA-009 — Base Entity Service & Common Service Helpers
 
-> Status: Active (Batch 2 — `BaseEntityService<TContext>`, `SearchableServiceBase<TEntity, TDto, TContext>`, `PrimaryFlagHelper`, and the `WorkflowEngine<T>` (SDD-INFRA-008) ship in `Finance.Infrastructure.Services`; `BaseApiController` + `IErrorCodeToStatusMap` ship in `Finance.Infrastructure.Web` (SDD-INFRA-001). The Batch-1 `Result` / `Result<T>` outcome types remain in `Finance.Common/Results`.)
+> Status: Implemented (Batch 2 — `BaseEntityService<TContext>`, `SearchableServiceBase<TEntity, TDto, TContext>`, `PrimaryFlagHelper`, and the `WorkflowEngine<T>` (SDD-INFRA-008) ship in `Finance.Infrastructure.Services`; `BaseApiController` + `IErrorCodeToStatusMap` ship in `Finance.Infrastructure.Web` (SDD-INFRA-001). The Batch-1 `Result` / `Result<T>` outcome types remain in `Finance.Common/Results`.)
 > Owner: Platform
 > Last updated: 2026-05-30
 > Category: Infrastructure
