@@ -55,5 +55,21 @@ public sealed class SqliteJournalRowVersionInterceptor : SaveChangesInterceptor
                 entry.Entity.RowVersion = Guid.NewGuid().ToByteArray()[..8];
             }
         }
+
+        StampPostingRuleRowVersions(eventData.Context);
+    }
+
+    private static void StampPostingRuleRowVersions(DbContext context)
+    {
+        IEnumerable<Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry<PostingRule>> rules =
+            context.ChangeTracker.Entries<PostingRule>();
+
+        foreach (Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry<PostingRule> rule in rules)
+        {
+            if (rule.State is EntityState.Added or EntityState.Modified)
+            {
+                rule.Entity.RowVersion = Guid.NewGuid().ToByteArray()[..8];
+            }
+        }
     }
 }

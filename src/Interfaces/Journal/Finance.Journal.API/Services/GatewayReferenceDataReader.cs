@@ -1,3 +1,4 @@
+using Finance.GenericFiltering.Models;
 using Finance.Journal.API.Interfaces;
 using Finance.ServiceModel.Accounts;
 using Finance.ServiceModel.Nomenclature;
@@ -100,6 +101,37 @@ public sealed class GatewayReferenceDataReader : IReferenceDataReader
         }
 
         return resolved;
+    }
+
+    /// <inheritdoc />
+    public async Task<int?> ResolveAccountIdByCodeAsync(string accountCode, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(accountCode))
+        {
+            return null;
+        }
+
+        try
+        {
+            PagedResult<AccountDto> page = await _accounts
+                .FindAccountsByCodeAsync(nameof(AccountDto.Code), "eq", accountCode, cancellationToken)
+                .ConfigureAwait(false);
+
+            AccountDto? account = page.Items.FirstOrDefault(candidate => candidate.IsActive);
+            return account?.Id;
+        }
+        catch (ApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+        catch (ApiException ex)
+        {
+            _logger.LogWarning(
+                ex,
+                "Account code resolution failed for code {AccountCode}; treating as unresolved.",
+                accountCode);
+            return null;
+        }
     }
 
     private async Task<AccountReference?> ResolveAccountReferenceAsync(

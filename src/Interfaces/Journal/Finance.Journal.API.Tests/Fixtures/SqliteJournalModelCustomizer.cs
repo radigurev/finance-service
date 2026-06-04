@@ -68,6 +68,27 @@ public sealed class SqliteJournalModelCustomizer : RelationalModelCustomizer
             rowVersion.ValueGenerated = ValueGenerated.Never;
             rowVersion.IsConcurrencyToken = true;
         }
+
+        RewritePostingRuleStoreGeneratedColumns(modelBuilder);
+    }
+
+    private static void RewritePostingRuleStoreGeneratedColumns(ModelBuilder modelBuilder)
+    {
+        IMutableEntityType? ruleType = modelBuilder.Model.FindEntityType(typeof(PostingRule));
+        if (ruleType is null)
+        {
+            return;
+        }
+
+        IMutableProperty? createdAt = ruleType.FindProperty(nameof(PostingRule.CreatedAt));
+        createdAt?.SetDefaultValueSql(null);
+
+        IMutableProperty? rowVersion = ruleType.FindProperty(nameof(PostingRule.RowVersion));
+        if (rowVersion is not null)
+        {
+            rowVersion.ValueGenerated = ValueGenerated.Never;
+            rowVersion.IsConcurrencyToken = true;
+        }
     }
 
     private static void ApplyDecimalConverters(ModelBuilder modelBuilder)

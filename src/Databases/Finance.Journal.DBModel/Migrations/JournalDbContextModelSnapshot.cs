@@ -283,6 +283,105 @@ namespace Finance.Journal.DBModel.Migrations
                     b.ToTable("JournalEntryStatusHistory", "journal");
                 });
 
+            modelBuilder.Entity("Finance.Journal.DBModel.Models.PostingRule", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CountryCode")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("nvarchar(3)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetimeoffset")
+                        .HasDefaultValueSql("SYSDATETIMEOFFSET()");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("RuleKey")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id")
+                        .HasName("PK_PostingRules");
+
+                    b.HasIndex("CountryCode")
+                        .HasDatabaseName("IX_PostingRules_CountryCode");
+
+                    b.HasIndex("RuleKey")
+                        .IsUnique()
+                        .HasDatabaseName("UQ_PostingRules_RuleKey");
+
+                    b.ToTable("PostingRules", "journal");
+                });
+
+            modelBuilder.Entity("Finance.Journal.DBModel.Models.PostingRuleLine", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AccountSelector")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("AmountSource")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("DebitOrCredit")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<decimal?>("FixedAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("LineNumber")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("Percentage")
+                        .HasColumnType("decimal(18,6)");
+
+                    b.Property<int>("PostingRuleId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id")
+                        .HasName("PK_PostingRuleLines");
+
+                    b.HasIndex("PostingRuleId")
+                        .HasDatabaseName("IX_PostingRuleLines_PostingRuleId");
+
+                    b.ToTable("PostingRuleLines", "journal");
+                });
+
             modelBuilder.Entity("MassTransit.EntityFrameworkCoreIntegration.InboxState", b =>
                 {
                     b.Property<long>("Id")
@@ -477,6 +576,18 @@ namespace Finance.Journal.DBModel.Migrations
                     b.Navigation("JournalEntry");
                 });
 
+            modelBuilder.Entity("Finance.Journal.DBModel.Models.PostingRuleLine", b =>
+                {
+                    b.HasOne("Finance.Journal.DBModel.Models.PostingRule", "PostingRule")
+                        .WithMany("Lines")
+                        .HasForeignKey("PostingRuleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_PostingRuleLines_PostingRules");
+
+                    b.Navigation("PostingRule");
+                });
+
             modelBuilder.Entity("MassTransit.EntityFrameworkCoreIntegration.OutboxMessage", b =>
                 {
                     b.HasOne("MassTransit.EntityFrameworkCoreIntegration.OutboxState", null)
@@ -494,6 +605,11 @@ namespace Finance.Journal.DBModel.Migrations
                     b.Navigation("Lines");
 
                     b.Navigation("StatusHistory");
+                });
+
+            modelBuilder.Entity("Finance.Journal.DBModel.Models.PostingRule", b =>
+                {
+                    b.Navigation("Lines");
                 });
 #pragma warning restore 612, 618
         }

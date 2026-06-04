@@ -33,6 +33,12 @@ public sealed class JournalDbContext : DbContext, IAuditDbContext
     /// <summary>The append-only journal-entry status-transition history.</summary>
     public DbSet<JournalEntryStatusHistory> JournalEntryStatusHistory => Set<JournalEntryStatusHistory>();
 
+    /// <summary>The editable posting-rule reference-data templates (SDD-FIN-006).</summary>
+    public DbSet<PostingRule> PostingRules => Set<PostingRule>();
+
+    /// <summary>The posting-rule lines (SDD-FIN-006).</summary>
+    public DbSet<PostingRuleLine> PostingRuleLines => Set<PostingRuleLine>();
+
     /// <inheritdoc />
     public DbSet<OperationsEvent> OperationsEvents => Set<OperationsEvent>();
 
@@ -46,6 +52,8 @@ public sealed class JournalDbContext : DbContext, IAuditDbContext
         modelBuilder.ApplyConfiguration(new JournalEntryConfiguration());
         modelBuilder.ApplyConfiguration(new JournalEntryLineConfiguration());
         modelBuilder.ApplyConfiguration(new JournalEntryStatusHistoryConfiguration());
+        modelBuilder.ApplyConfiguration(new PostingRuleConfiguration());
+        modelBuilder.ApplyConfiguration(new PostingRuleLineConfiguration());
         modelBuilder.ApplyConfiguration(new OperationsEventConfiguration());
         modelBuilder.ApplyConfiguration(new SequenceCounterConfiguration());
 

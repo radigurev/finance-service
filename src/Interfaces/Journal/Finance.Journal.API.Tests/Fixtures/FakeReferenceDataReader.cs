@@ -13,6 +13,19 @@ public sealed class FakeReferenceDataReader : IReferenceDataReader
     private readonly HashSet<int> _notPostableAccounts = [];
     private readonly HashSet<string> _inactiveCurrencies = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<int, AccountReference> _accountReferences = [];
+    private readonly Dictionary<string, int> _accountIdsByCode = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Registers a chart-of-accounts code → postable account id mapping used by
+    /// <see cref="ResolveAccountIdByCodeAsync"/> (SDD-FIN-006 §2.2). Codes without a registration resolve to
+    /// <see langword="null"/>, simulating a missing/unreachable account.
+    /// </summary>
+    /// <param name="code">The account code to register.</param>
+    /// <param name="accountId">The postable account id the code resolves to.</param>
+    public void RegisterAccountCode(string code, int accountId)
+    {
+        _accountIdsByCode[code] = accountId;
+    }
 
     /// <summary>
     /// Registers the display <c>code</c> / <c>name</c> returned by <see cref="GetAccountReferencesAsync"/>
@@ -68,5 +81,16 @@ public sealed class FakeReferenceDataReader : IReferenceDataReader
         }
 
         return Task.FromResult<IReadOnlyDictionary<int, AccountReference>>(resolved);
+    }
+
+    /// <inheritdoc />
+    public Task<int?> ResolveAccountIdByCodeAsync(string accountCode, CancellationToken cancellationToken)
+    {
+        if (_accountIdsByCode.TryGetValue(accountCode, out int accountId))
+        {
+            return Task.FromResult<int?>(accountId);
+        }
+
+        return Task.FromResult<int?>(null);
     }
 }

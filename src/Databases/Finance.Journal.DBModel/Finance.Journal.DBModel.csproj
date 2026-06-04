@@ -10,6 +10,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\Country\Finance.Country.Abstractions\Finance.Country.Abstractions.csproj" />
     <ProjectReference Include="..\..\Finance.Common\Finance.Common.csproj" />
     <ProjectReference Include="..\..\Finance.GenericFiltering\Finance.GenericFiltering.csproj" />
     <ProjectReference Include="..\..\Infrastructure\Audit\Finance.Infrastructure.Audit\Finance.Infrastructure.Audit.csproj" />

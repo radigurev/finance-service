@@ -40,4 +40,17 @@ public interface IReferenceDataReader
     Task<IReadOnlyDictionary<int, AccountReference>> GetAccountReferencesAsync(
         IReadOnlyCollection<int> accountIds,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Resolves a chart-of-accounts <c>code</c> string to a postable account identifier for the Posting
+    /// Engine's line materialization (SDD-FIN-006 §2.2). The lookup goes through the existing
+    /// gateway-backed Accounts read seam; a code that matches no active postable account resolves to
+    /// <see langword="null"/> so the engine can fail with <c>POSTING_RULE_ACCOUNT_NOT_FOUND</c>. An
+    /// unreachable read also resolves to <see langword="null"/> so a line never posts against an
+    /// unverified account.
+    /// </summary>
+    /// <param name="accountCode">The chart-of-accounts code (e.g. <c>"411"</c>).</param>
+    /// <param name="cancellationToken">A token to observe for cancellation.</param>
+    /// <returns>The postable account identifier when resolvable; otherwise <see langword="null"/>.</returns>
+    Task<int?> ResolveAccountIdByCodeAsync(string accountCode, CancellationToken cancellationToken);
 }

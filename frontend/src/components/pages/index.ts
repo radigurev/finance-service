@@ -6,3 +6,4 @@ export { JournalEntriesListPage } from './JournalEntriesListPage';
 export { FiscalPeriodsListPage } from './FiscalPeriodsListPage';
 export { TrialBalancePage } from './TrialBalancePage';
 export { AccountLedgerPage } from './AccountLedgerPage';
+export { PostingRulesListPage } from './PostingRulesListPage';

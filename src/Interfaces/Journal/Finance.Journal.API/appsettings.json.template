@@ -27,6 +27,9 @@
   "Gateway": {
     "BaseUrl": "<FINANCE_GATEWAY_BASE_URL>"
   },
+  "FeatureManagement": {
+    "EnablePostingRuleSeeding": false
+  },
   "Jwt": {
     "SecretKey": "<JWT_SECRET_KEY_MIN_32_CHARS>",
     "Issuer": "Warehouse.Auth.API",

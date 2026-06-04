@@ -108,6 +108,18 @@
           "Path": "/api/v1/general-ledger/{**catch-all}"
         }
       },
+      "posting-rules-route": {
+        "ClusterId": "journal-cluster",
+        "Match": {
+          "Path": "/api/v1/posting-rules/{**catch-all}"
+        }
+      },
+      "posting-route": {
+        "ClusterId": "journal-cluster",
+        "Match": {
+          "Path": "/api/v1/posting/{**catch-all}"
+        }
+      },
       "periods-route": {
         "ClusterId": "periods-cluster",
         "Match": {

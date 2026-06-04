@@ -1,3 +1,4 @@
+using Finance.GenericFiltering.Models;
 using Finance.ServiceModel.Accounts;
 using Refit;
 
@@ -18,4 +19,22 @@ public interface IAccountReadClient
     /// <returns>The account when found; otherwise an API error captured by the caller.</returns>
     [Get("/api/v1/accounts/{id}")]
     Task<AccountDto> GetAccountAsync(int id, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Lists accounts whose <c>Code</c> equals <paramref name="value"/> via the filtered list endpoint,
+    /// used by the Posting Engine to resolve an <c>AccountSelector</c> code to a postable account id
+    /// (SDD-FIN-006 §2.2). The query parameters bind to a single <c>eq</c> filter clause on the
+    /// <c>[Filterable]</c> <c>Code</c> property.
+    /// </summary>
+    /// <param name="field">The filterable field name (always <c>Code</c>).</param>
+    /// <param name="op">The filter operator wire token (always <c>eq</c>).</param>
+    /// <param name="value">The account code to match.</param>
+    /// <param name="cancellationToken">A token to observe for cancellation.</param>
+    /// <returns>A paged result of matching accounts (expected to contain at most one).</returns>
+    [Get("/api/v1/accounts")]
+    Task<PagedResult<AccountDto>> FindAccountsByCodeAsync(
+        [AliasAs("Filters[0].Field")] string field,
+        [AliasAs("Filters[0].Operator")] string op,
+        [AliasAs("Filters[0].Value")] string value,
+        CancellationToken cancellationToken);
 }

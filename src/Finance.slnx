@@ -6,6 +6,11 @@
     <Project Path="Databases/Finance.Journal.DBModel/Finance.Journal.DBModel.csproj" />
     <Project Path="Databases/Finance.Periods.DBModel/Finance.Periods.DBModel.csproj" />
   </Folder>
+  <Folder Name="/Country/">
+    <Project Path="Country/Finance.Country.Abstractions/Finance.Country.Abstractions.csproj" />
+    <Project Path="Country/Finance.Country.BG/Finance.Country.BG.csproj" />
+    <Project Path="Country/Finance.Country.BG.Tests/Finance.Country.BG.Tests.csproj" />
+  </Folder>
   <Folder Name="/Infrastructure/">
     <Project Path="Infrastructure/Finance.Infrastructure.Stateful.Tests/Finance.Infrastructure.Stateful.Tests.csproj" />
     <Project Path="Infrastructure/Finance.Infrastructure.Tests/Finance.Infrastructure.Tests.csproj" />

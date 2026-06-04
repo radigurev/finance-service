@@ -15,6 +15,7 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="9.0.0" />
+    <PackageReference Include="Microsoft.FeatureManagement.AspNetCore" Version="3.5.0" />
     <PackageReference Include="NLog.Targets.Loki" Version="2.5.0" />
     <PackageReference Include="NLog.Web.AspNetCore" Version="5.4.0" />
     <PackageReference Include="AspNetCore.HealthChecks.SqlServer" Version="8.0.2" />
@@ -32,6 +33,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\..\Country\Finance.Country.Abstractions\Finance.Country.Abstractions.csproj" />
+    <ProjectReference Include="..\..\..\Country\Finance.Country.BG\Finance.Country.BG.csproj" />
     <ProjectReference Include="..\..\..\Databases\Finance.Journal.DBModel\Finance.Journal.DBModel.csproj" />
     <ProjectReference Include="..\..\..\Finance.Common\Finance.Common.csproj" />
     <ProjectReference Include="..\..\..\Finance.GenericFiltering\Finance.GenericFiltering.csproj" />
