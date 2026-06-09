@@ -638,7 +638,7 @@ public sealed class JournalEntryService
 
         return await RecordAuditAsync(
             JournalAuditEventTypes.JournalEntryPosted,
-            AuditOperation.StateChange,
+            AuditOperation.Create,
             reversal,
             beforeJson: null,
             SerializeEntry(reversal),

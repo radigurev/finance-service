@@ -79,6 +79,11 @@ public sealed class SequenceGenerator<TContext> : ISequenceGenerator
     private async Task<long> AllocateNextCounterAsync(
         string compositeKey, DateTimeOffset now, CancellationToken cancellationToken)
     {
+        if (_db.Database.CurrentTransaction is not null)
+        {
+            return await IncrementCounterAsync(compositeKey, now, cancellationToken).ConfigureAwait(false);
+        }
+
         IDbContextTransaction transaction = await _db.Database
             .BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
             .ConfigureAwait(false);

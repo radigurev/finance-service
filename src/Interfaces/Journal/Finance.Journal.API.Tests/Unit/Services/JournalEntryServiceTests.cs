@@ -687,8 +687,9 @@ public sealed class JournalEntryServiceTests
 
     /// <summary>
     /// A single successful reversal writes EXACTLY two audit rows — one StateChange on the original entry and
-    /// one StateChange on the new reversal entry — per SDD-FIN-002 §2.6 step 5. Regression guard for the
-    /// Batch 11.1 fix where reversal previously recorded only the original's audit row.
+    /// one Create on the new reversal entry (which has no prior state, so the SDD-AUDIT-001 §3 BeforeJson
+    /// invariant requires Create) — per SDD-FIN-002 §2.6 step 5. Regression guard for the Batch 11.1 fix
+    /// where reversal previously recorded only the original's audit row.
     /// </summary>
     [Test]
     public async Task Reverse_WritesExactlyTwoAuditRows_OneForOriginalAndOneForReversalEntry()
@@ -716,7 +717,7 @@ public sealed class JournalEntryServiceTests
             Assert.That(originalRow.EventType, Is.EqualTo(JournalAuditEventTypes.JournalEntryReversed));
             Assert.That(originalRow.Operation, Is.EqualTo(AuditOperation.StateChange));
             Assert.That(reversalRow.EventType, Is.EqualTo(JournalAuditEventTypes.JournalEntryPosted));
-            Assert.That(reversalRow.Operation, Is.EqualTo(AuditOperation.StateChange));
+            Assert.That(reversalRow.Operation, Is.EqualTo(AuditOperation.Create));
         });
     }
 
@@ -745,7 +746,7 @@ public sealed class JournalEntryServiceTests
         {
             Assert.That(reversalRow.EntityId, Is.EqualTo(result.Value!.Id.ToString()));
             Assert.That(reversalRow.EventType, Is.EqualTo(JournalAuditEventTypes.JournalEntryPosted));
-            Assert.That(reversalRow.Operation, Is.EqualTo(AuditOperation.StateChange));
+            Assert.That(reversalRow.Operation, Is.EqualTo(AuditOperation.Create));
             Assert.That(reversalRow.BeforeJson, Is.Null);
             Assert.That(reversalRow.AfterJson, Is.Not.Null);
             Assert.That(reversalRow.Reason, Is.EqualTo("New-entry snapshot"));

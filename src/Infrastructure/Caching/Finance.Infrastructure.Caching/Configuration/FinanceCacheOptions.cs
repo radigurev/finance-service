@@ -25,5 +25,6 @@ public sealed class FinanceCacheOptions
         "finance-currency",
         "finance-periods",
         "finance-nomenclature",
+        "finance-journal",
     ];
 }

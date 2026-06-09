@@ -115,4 +115,34 @@ public sealed class CacheKeyValidatorTests
             () => _validator.ValidateKey("finance-accountsX:chart:all"),
             Throws.TypeOf<CacheKeyPatternViolationException>());
     }
+
+    /// <summary>
+    /// CHG-FIX-003 regression guard: a validator built from the production-default
+    /// <see cref="FinanceCacheOptions"/> MUST register the <c>finance-journal</c> prefix, so the posting-rule
+    /// list key validates (it was previously rejected because the Journal prefix was absent from the default set).
+    /// </summary>
+    [Test]
+    public void ValidateKey_DefaultOptionsJournalPostingRuleListKey_DoesNotThrow()
+    {
+        // Arrange
+        CacheKeyValidator validator = new(Options.Create(new FinanceCacheOptions()));
+
+        // Act & Assert
+        Assert.That(() => validator.ValidateKey("finance-journal:posting-rule:all"), Throws.Nothing);
+    }
+
+    /// <summary>
+    /// CHG-FIX-003 regression guard: a validator built from the production-default
+    /// <see cref="FinanceCacheOptions"/> MUST register the <c>finance-journal</c> prefix, so the bounded
+    /// posting-rule invalidation pattern validates (this is the pattern the write path scans to invalidate).
+    /// </summary>
+    [Test]
+    public void ValidatePattern_DefaultOptionsJournalPostingRulePattern_DoesNotThrow()
+    {
+        // Arrange
+        CacheKeyValidator validator = new(Options.Create(new FinanceCacheOptions()));
+
+        // Act & Assert
+        Assert.That(() => validator.ValidatePattern("finance-journal:posting-rule:*"), Throws.Nothing);
+    }
 }
