@@ -19,6 +19,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Finance.Accounts.API\Finance.Accounts.API.csproj" />
     <ProjectReference Include="..\..\..\Databases\Finance.Accounts.DBModel\Finance.Accounts.DBModel.csproj" />
+    <ProjectReference Include="..\..\..\Tests\Finance.IntegrationTesting\Finance.IntegrationTesting.csproj" />
   </ItemGroup>
 
 </Project>

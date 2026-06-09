@@ -20,6 +20,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Finance.Journal.API\Finance.Journal.API.csproj" />
     <ProjectReference Include="..\..\..\Databases\Finance.Journal.DBModel\Finance.Journal.DBModel.csproj" />
+    <ProjectReference Include="..\..\..\Tests\Finance.IntegrationTesting\Finance.IntegrationTesting.csproj" />
   </ItemGroup>
 
 </Project>

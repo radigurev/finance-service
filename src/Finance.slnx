@@ -58,6 +58,9 @@
     <Project Path="Interfaces/Periods/Finance.Periods.API/Finance.Periods.API.csproj" />
     <Project Path="Interfaces/Periods/Finance.Periods.API.Tests/Finance.Periods.API.Tests.csproj" />
   </Folder>
+  <Folder Name="/Tests/">
+    <Project Path="Tests/Finance.IntegrationTesting/Finance.IntegrationTesting.csproj" />
+  </Folder>
   <Folder Name="/Shared/">
     <Project Path="Finance.Common.Tests/Finance.Common.Tests.csproj" />
     <Project Path="Finance.Common/Finance.Common.csproj" />
