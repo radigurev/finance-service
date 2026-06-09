@@ -101,7 +101,7 @@ Two principles govern the lifecycle:
   2. Set the new entry's `ReversesEntryId` to the original's `Id`, and set the new entry's `Status = Posted` (a reversal is posted immediately — it does not pass through `Draft`).
   3. Assign the new entry a fresh gapless `JE` `EntryNumber`, stamp `PostedAt`/`PostedBy`.
   4. Transition the **original** entry `Posted → Reversed` via the workflow engine (the only mutation allowed on a posted entry is this state flag + `RowVersion` + status-history; its lines and number stay intact).
-  5. Write audit rows for BOTH entries: a `StateChange` (`EventType = "JournalEntryReversed"`, with the `Reason`) on the original, and a `Create`/post row on the reversal entry — audit-first, before the outbox.
+  5. Write audit rows for BOTH entries, audit-first (before the outbox): a `StateChange` on the **original** (`EventType = "JournalEntryReversed"`, non-null `BeforeJson` = pre-reversal snapshot, with the `Reason`), and a **`Create`** row on the **reversal** entry (`EventType = "JournalEntryPosted"`, `BeforeJson = null`). The reversal entry has no prior state, so its audit row MUST be `AuditOperation.Create` — `StateChange` with a null `BeforeJson` violates the SDD-AUDIT-001 §3 invariant and is rejected. (See `CHG-FIX-002`.)
   6. Enqueue `JournalEntryReversedEvent` to the outbox (carrying the original id, the reversal id, the reason; atomic with the DB write).
   7. Append status-history rows and increment `RowVersion` on the original; the reversal entry's history starts at `Posted`.
 
@@ -264,14 +264,16 @@ Constants live in `Finance.Common.ErrorCodes.JournalErrorCodes` (shared with SDD
 | `Search_DoesNotCacheTransactionalData` | [Unit] |
 | `JournalErrorCodes_DefinesPostingPeriodClosed_ForDeferredFin004Seam` | [Unit] |
 
-### 6.5 Endpoint & wiring (Integration — `[Category("Integration")]`, excluded from default run)
+### 6.5 Endpoint & wiring (Integration — `[Category("Integration")]`, excluded from the fast offline run)
+
+**Implemented (Batch 15)** in `Finance.Journal.API.Tests/Integration/JournalEndpointIntegrationTests.cs`, running against the shared Testcontainers harness (`src/Tests/Finance.IntegrationTesting` — real SQL Server + Redis + RabbitMQ, minted JWT + real RBAC pipeline). Green. These exercise the real posting/reversal transaction path and include the `CHG-FIX-001` (no nested transaction) and `CHG-FIX-002` (reversal audit = `Create`) regression guards. The rows below are the behaviors covered; as-built method names may differ slightly.
 
 | Test name | Kind |
 |---|---|
 | `Create_Returns201_AndPersistsDraft` | [Integration] |
 | `Post_Returns200_AndWritesOutboxAndAuditRow_InSameTransaction` | [Integration] |
-| `Post_ConcurrentCallers_OneFailsWithConcurrentModification` | [Integration] |
-| `Post_AllocatesGaplessJeNumbers_UnderConcurrency_NoGaps` | [Integration] |
+| `Post_ConcurrentCallers_OneFailsWithConcurrentModification` (two posts of the SAME draft → one `CONCURRENT_MODIFICATION`) | [Integration] — Deferred (RowVersion conflict covered by unit `UpdateDraft_StaleRowVersion_ReturnsConcurrentModification`) |
+| `Post_ConcurrentCallers_AllocateUniqueGaplessJeNumbers_NoGaps` (N distinct drafts posted concurrently → unique, contiguous, gapless `JE` numbers — `UPDLOCK, HOLDLOCK` + `CHG-FIX-001` ambient-transaction guarantee, НАП) | [Integration] (Batch 15, green) — also `[Category("SDD-INFRA-003")]` |
 | `Reverse_Returns200_AndPersistsReversalEntry_AndFlipsOriginalToReversed` | [Integration] |
 | `Reverse_Returns400_WhenReasonMissing` | [Integration] |
 | `Post_Returns409_WhenAlreadyPosted` | [Integration] |

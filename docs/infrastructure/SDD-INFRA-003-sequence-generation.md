@@ -57,9 +57,9 @@ All format patterns are produced by the registered `IDocumentNumberFormatter` (�
 ### 2.2 `NextAsync(sequenceKey, ct)` (MUST)
 1. Resolve the sequence definition for the key from the registered definitions (built-in keys; per-country additions arrive with SDD-CTRY-001).
 2. Compute composite key by reset policy: `{key}:{yyyy}` for Yearly, `{key}:{yyyyMM}` for Monthly, `{key}:{yyyyMMdd}` for Daily, `{key}` for Never.
-3. Open a transaction with `IsolationLevel.Serializable`.
+3. If the caller already has an open (ambient) DB transaction, **enlist in it** — the generator MUST NOT open a nested transaction (SQL Server forbids nested transactions and throws `InvalidOperationException`). Otherwise open a transaction with `IsolationLevel.Serializable`. Either path relies on the row lock in step 4 for the gapless guarantee, so the `UPDLOCK, HOLDLOCK` hints serialize counter access regardless of the ambient isolation level. (See `CHG-FIX-001`.)
 4. `SELECT ... WITH (UPDLOCK, HOLDLOCK)` against the `SequenceCounter` row (`infrastructure.Sequences`). If no row, INSERT with `CurrentValue = 1`. Otherwise UPDATE `CurrentValue = CurrentValue + 1` and `ModifiedAt = SYSDATETIMEOFFSET()`.
-5. Commit.
+5. Commit only the transaction this method itself opened. When enlisted in the caller's ambient transaction, the caller owns commit/rollback — so number allocation is atomic with the document it numbers (this is the stronger, preferred path used by journal posting/reversal).
 6. Hand the new counter + fiscal year to the registered `IDocumentNumberFormatter` (§2.6). Return the formatted string.
 
 The method MUST return a unique sequential value even under concurrent callers. It MUST NOT use any caching layer. All library async members MUST pass the `CancellationToken` through and use `ConfigureAwait(false)`.
@@ -108,7 +108,9 @@ Batch-3 unit tests live in `src/Infrastructure/Finance.Infrastructure.Tests`. EF
 | `NextAsync_ReturnsFormattedValueForRegisteredKey` | [Unit] (SQLite in-memory) |
 | `NextAsync_IncrementsCounterPerCall` | [Unit] (SQLite in-memory) |
 | `NextAsync_StartsAtOne_ForNewFiscalYear` | [Unit] (SQLite in-memory) |
-| `NextAsync_ConcurrentCallers_ProduceUniqueSequentialValues` | [Integration] (real SQL Server lock semantics) |
+| `NextAsync_ConcurrentCallers_ProduceUniqueSequentialValues` | [Integration] (real SQL Server lock semantics) — Deferred as a standalone generator test; the gapless-under-concurrency guarantee is covered end-to-end by `Post_ConcurrentCallers_AllocateUniqueGaplessJeNumbers_NoGaps` (below), which drives this generator through the real posting path |
+| `JournalEndpointIntegrationTests` post/reverse (allocation inside the caller's ambient transaction — `CHG-FIX-001` regression guard) | [Integration] (real SQL Server, Testcontainers) — `Finance.Journal.API.Tests` |
+| `Post_ConcurrentCallers_AllocateUniqueGaplessJeNumbers_NoGaps` (N concurrent posts → unique contiguous gapless `JE` numbers, no gaps/dupes — §2.3 guarantee under load) | [Integration] (Batch 15, green) — `Finance.Journal.API.Tests` |
 | `NextAsync_Throws_WhenSequenceKeyNotRegistered` | [Unit] |
 | `DefaultDocumentNumberFormatter_ProducesBgPattern_WithPadding` | [Unit] |
 | `SequenceGenerator_UsesRegisteredFormatter_ForOutput` | [Unit] (SQLite in-memory) |

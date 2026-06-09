@@ -210,7 +210,9 @@ All errors are RFC-7807 ProblemDetails per SDD-INFRA-001: `title` = code (SCREAM
 | `Validate_MissingAsOfDate_ReturnsInvalidDateRange` | [Unit] |
 | `JournalErrorCodes_DefinesInvalidAccountId` | [Unit] |
 
-### 6.4 Endpoint & wiring (Integration — `[Category("Integration")]`, excluded from default run)
+### 6.4 Endpoint & wiring (Integration — `[Category("Integration")]`, excluded from the fast offline run)
+
+**Implemented (Batch 15)** in `Finance.Journal.API.Tests/Integration/GeneralLedgerEndpointIntegrationTests.cs` against the shared Testcontainers harness (`src/Tests/Finance.IntegrationTesting` — real SQL Server + Redis + RabbitMQ). Green: trial balance balanced over real-SQL aggregation, account-ledger running balance, date-range 400, not-cached recompute, and RBAC 403. (Depends on `CHG-FIX-001` so posted entries can be seeded via the real posting path.)
 
 | Test name | Kind |
 |---|---|

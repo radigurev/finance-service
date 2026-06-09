@@ -47,7 +47,7 @@ This spec defines the Redis distributed-cache layer used by every Finance micros
 - `{service}:{entity}:{id}` — single row by primary key.
 - `{service}:{entity}:byCode:{code}` — single row by natural key.
 - `{service}:{entity}:filter:{stableHash}` — filtered list, where `stableHash` is SHA-256 over a canonical query-string ordering.
-- Service prefixes are kebab-case and stable: `finance-accounts`, `finance-currency`, `finance-periods`, `finance-nomenclature`.
+- Service prefixes are kebab-case and stable: `finance-accounts`, `finance-currency`, `finance-periods`, `finance-nomenclature`, `finance-journal` (the journal service caches posting rules as reference data — `finance-journal:posting-rule:*`; registered per `CHG-FIX-003`). Adding a new cache-consuming service MUST register its prefix in `FinanceCacheOptions.RegisteredServicePrefixes`.
 
 ### 2.2 TTL conventions (MUST)
 These are the v1 default TTLs the library applies when a caller does not pass an explicit `ttl`. Defaults: reference data 30 min, permissions 5 min, latest rates 5 min, cross-service reads 60 s.

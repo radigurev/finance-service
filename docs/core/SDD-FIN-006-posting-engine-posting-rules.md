@@ -1,6 +1,6 @@
 # SDD-FIN-006 — Posting Engine + Posting Rules
 
-> Status: Implemented (Batch 14 — backend shipped + green `[Unit]` tests (engine, rule CRUD, shape validators, seeder, BG strategy) + validated spec↔code↔tests; account resolution is lazy at apply time and the `EnablePostingRuleSeeding` flag is host-startup-gated (§2.2). Deferred: document-triggered auto-posting (SDD-INV-001/SDD-PAY-001), richer account selectors, percentage/fixed split lines, and the `[Category("Integration")]` HTTP/SQL/Redis/RBAC suite (offline). Two capabilities in the EXISTING `Finance.Journal.API`: (A) **Posting Rules** — editable reference data (CRUD over `PostingRule`/`PostingRuleLine`, schema `journal`, INT IDENTITY PKs, filtered/paged, cached, audited), seeded from `ICountryStrategy.GetDefaultPostingRules()` (SDD-CTRY-001) via a feature-flag-gated `PostingRuleSeeder`; and (B) **Posting Engine** — `IPostingEngine.ApplyAsync(ruleKey, amountContext)` resolves an active rule, materializes balanced debit/credit lines by an enum-driven `AmountSource`→amount mapping, and DELEGATES materialization+posting to the EXISTING `IJournalEntryService` (`CreateDraftAsync` → optional `PostAsync`, SDD-FIN-002) — reusing all double-entry/numbering/audit/outbox machinery, reimplementing none. v1 endpoint = generic `POST /api/v1/posting/apply`. Deferred: document-triggered auto-posting (invoice/payment events) to SDD-INV-001/SDD-PAY-001; richer account selectors; percentage/fixed split lines.)
+> Status: Implemented (Batch 14 — backend shipped + green `[Unit]` tests (engine, rule CRUD, shape validators, seeder, BG strategy) + validated spec↔code↔tests; account resolution is lazy at apply time and the `EnablePostingRuleSeeding` flag is host-startup-gated (§2.2). Deferred: document-triggered auto-posting (SDD-INV-001/SDD-PAY-001), richer account selectors, and percentage/fixed split lines. The `[Category("Integration")]` HTTP/SQL/Redis/RBAC suite is now **Implemented (Batch 15)** via the Testcontainers harness (§6.4) and surfaced `CHG-FIX-003`. Two capabilities in the EXISTING `Finance.Journal.API`: (A) **Posting Rules** — editable reference data (CRUD over `PostingRule`/`PostingRuleLine`, schema `journal`, INT IDENTITY PKs, filtered/paged, cached, audited), seeded from `ICountryStrategy.GetDefaultPostingRules()` (SDD-CTRY-001) via a feature-flag-gated `PostingRuleSeeder`; and (B) **Posting Engine** — `IPostingEngine.ApplyAsync(ruleKey, amountContext)` resolves an active rule, materializes balanced debit/credit lines by an enum-driven `AmountSource`→amount mapping, and DELEGATES materialization+posting to the EXISTING `IJournalEntryService` (`CreateDraftAsync` → optional `PostAsync`, SDD-FIN-002) — reusing all double-entry/numbering/audit/outbox machinery, reimplementing none. v1 endpoint = generic `POST /api/v1/posting/apply`. Deferred: document-triggered auto-posting (invoice/payment events) to SDD-INV-001/SDD-PAY-001; richer account selectors; percentage/fixed split lines.)
 > Owner: Finance
 > Last updated: 2026-06-04
 > Category: Core
@@ -232,7 +232,9 @@ The `DefaultErrorCodeToStatusMap` (SDD-INFRA-009) maps `*_NOT_FOUND`→404, `*_C
 
 > The seeder does NOT resolve account codes (resolution is at apply time, §2.2) and does NOT own the `EnablePostingRuleSeeding` flag (host-startup gate, §2.2) — so the former `Seeder_FlagDisabled_DoesNothing` / `Seeder_ResolvesAccountSelectorToAccountId…` / `Seeder_AccountCodeUnresolved…` names are intentionally absent. Apply-time account-not-found is covered by `Apply_AccountCodeUnresolved_ReturnsPostingRuleAccountNotFound` (§6.2); the flag gate is an integration-wiring concern (§6.4).
 
-### 6.4 Endpoint & wiring (Integration — `[Category("Integration")]`, excluded from default run)
+### 6.4 Endpoint & wiring (Integration — `[Category("Integration")]`, excluded from the fast offline run)
+
+**Implemented (Batch 15)** in `Finance.Journal.API.Tests/Integration/PostingEndpointIntegrationTests.cs` against the shared Testcontainers harness (`src/Tests/Finance.IntegrationTesting` — real SQL Server + Redis + RabbitMQ). Green: apply→post over real SQL with outbox+audit, unbalanced/unknown/inactive rule rejections, account-not-found, RBAC 403, and posting-rule CRUD. Includes the `CHG-FIX-003` (`finance-journal` cache prefix) and `CHG-FIX-001` (apply→post transaction) regression guards.
 
 | Test name | Kind |
 |---|---|
@@ -241,8 +243,8 @@ The `DefaultErrorCodeToStatusMap` (SDD-INFRA-009) maps `*_NOT_FOUND`→404, `*_C
 | `Apply_Returns404_WhenRuleKeyUnknown` | [Integration] |
 | `CreateRule_Returns201_AndPersists` | [Integration] |
 | `CreateRule_Returns409_WhenDuplicateKey` | [Integration] |
-| `Seeder_OverRealSql_InsertsBgDefaults_Idempotent` | [Integration] |
-| `PostingRules_AreCached_InvalidatedOnWrite_OverRealRedis` | [Integration] |
+| `Seeder_OverRealSql_InsertsBgDefaults_Idempotent` | [Integration] — Deferred (seeding/idempotency covered by unit `PostingRuleSeederTests`; real-SQL variant not built) |
+| `UpdateRule_ThenApply_ReflectsNewLines` (§107 — next apply uses the new lines, not a stale copy; `CHG-FIX-003` end-to-end guard) | [Integration] |
 | `Apply_Endpoint_Returns403_WhenPostingApplyPermissionMissing` | [Integration] |
 | `PostingRules_Endpoint_Returns403_WhenWritePermissionMissing` | [Integration] |
 

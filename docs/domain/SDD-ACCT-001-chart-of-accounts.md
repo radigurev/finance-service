@@ -190,7 +190,9 @@ Account constants live in `Finance.Common.ErrorCodes.AccountErrorCodes`; `CONCUR
 | `AccountConfiguration_HasUniqueIndexOnCountryAndCode` | [Unit] |
 | `AccountConfiguration_ConfiguresRowVersionConcurrencyToken` | [Unit] |
 
-### 6.2 Endpoint & wiring (Integration — `[Category("Integration")]`, excluded from default run)
+### 6.2 Endpoint & wiring (Integration — `[Category("Integration")]`, excluded from the fast offline run)
+
+**Implemented (Batch 15)** in `Finance.Accounts.API.Tests/Integration/AccountsEndpointIntegrationTests.cs` against the shared Testcontainers harness (`src/Tests/Finance.IntegrationTesting` — real SQL Server + Redis + RabbitMQ, minted JWT + real RBAC). All 15 green, including outbox+audit-in-the-same-transaction and the 403-without-permission case.
 
 | Test name | Kind |
 |---|---|
