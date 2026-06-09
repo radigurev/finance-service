@@ -1,3 +1,5 @@
+using Finance.Common.Enums;
+
 namespace Finance.Country.Abstractions;
 
 /// <summary>
@@ -31,4 +33,46 @@ public interface ICountryStrategy
     /// </summary>
     /// <returns>The country's default posting-rule templates (SDD-CTRY-001 §2.3).</returns>
     IReadOnlyList<PostingRuleTemplate> GetDefaultPostingRules();
+
+    /// <summary>
+    /// The country's standard (default) tax rate as a decimal fraction (e.g. <c>0.20</c> for 20%)
+    /// (SDD-CTRY-001 §5, SDD-INT-WH-001 §2.3). A side-effect-free, deterministic read. Used to default a
+    /// line whose source document omits an explicit tax rate (so a Warehouse-originated draft carries the
+    /// country's default rate rather than zero) — the country owns the rate so the core never hard-codes a
+    /// VAT rate. The value MUST satisfy <see cref="IsValidTaxRate"/>.
+    /// </summary>
+    decimal StandardTaxRate { get; }
+
+    /// <summary>
+    /// Applies the country's rounding mode for a monetary tax amount, returning the rounded value
+    /// (SDD-CTRY-001 §5, SDD-INV-001 §2.8). Pure, deterministic, and side-effect-free: the same input
+    /// always yields the same output. The Finance core MUST route every tax rounding through this member
+    /// rather than inlining a <see cref="System.MidpointRounding"/> mode, so the rounding rule stays
+    /// country-owned.
+    /// </summary>
+    /// <param name="amount">The raw (unrounded) tax amount to round.</param>
+    /// <returns>The amount rounded to the country's tax precision and midpoint rule.</returns>
+    decimal ApplyTaxRounding(decimal amount);
+
+    /// <summary>
+    /// Determines whether <paramref name="rate"/> is a tax rate the country recognizes as legal
+    /// (SDD-CTRY-001 §5, SDD-INV-001 §2.8). Pure, deterministic, and side-effect-free. The invoice service
+    /// rejects an unrecognized rate with <c>INVALID_INVOICE_TAX_RATE</c>; the country owns which rates are
+    /// valid so the core never hard-codes a VAT rate.
+    /// </summary>
+    /// <param name="rate">The tax rate to test (e.g. <c>0.20</c> for 20%).</param>
+    /// <returns><c>true</c> when the rate is a recognized country tax rate; otherwise <c>false</c>.</returns>
+    bool IsValidTaxRate(decimal rate);
+
+    /// <summary>
+    /// Formats a gapless sequence value into the country's document number for the supplied
+    /// <paramref name="documentType"/> (SDD-CTRY-001 §5, SDD-INV-001 §2.4). Pure, deterministic, and
+    /// side-effect-free — it performs no I/O and never allocates a sequence value itself (the caller
+    /// allocates it via <c>ISequenceGenerator</c>). The prefix is per document type (purchase / sale /
+    /// credit note / debit note).
+    /// </summary>
+    /// <param name="documentType">The invoice document type whose number is being formatted.</param>
+    /// <param name="sequenceValue">The freshly allocated gapless sequence value (1-based).</param>
+    /// <returns>The country-formatted document number (e.g. <c>ФПр-2026-000001</c>).</returns>
+    string GenerateDocumentNumber(InvoiceDocumentType documentType, long sequenceValue);
 }

@@ -4,6 +4,7 @@ using Finance.Common.Validation;
 using Finance.Common.Workflow;
 using Finance.Country.Abstractions;
 using Finance.Country.BG;
+using Finance.Journal.API.Consumers;
 using Finance.Infrastructure.Audit.Extensions;
 using Finance.Infrastructure.Caching;
 using Finance.Infrastructure.Messaging;
@@ -23,6 +24,7 @@ using Finance.Journal.API.Workflow;
 using Finance.Journal.DBModel;
 using Finance.Journal.DBModel.Models;
 using Finance.ServiceModel.Posting;
+using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.FeatureManagement;
@@ -79,7 +81,7 @@ static void ConfigureServices(WebApplicationBuilder builder)
     services.AddWarehousePermissionValidation(configuration);
 
     services.AddFinanceRedisCache(configuration);
-    services.AddFinanceMessageBus<JournalDbContext>(configuration);
+    services.AddFinanceMessageBus<JournalDbContext>(configuration, ConfigureConsumers);
     services.AddFinanceAudit<JournalDbContext>();
     services.AddSequenceGenerator<JournalDbContext>();
 
@@ -115,6 +117,13 @@ static void ConfigureServices(WebApplicationBuilder builder)
     ConfigureReferenceDataClients(services, configuration);
 
     services.AddControllers();
+}
+
+static void ConfigureConsumers(IBusRegistrationConfigurator registration)
+{
+    // SDD-INV-001 §2.5: consume InvoiceConfirmedEvent, post the JE via the Posting Engine, and publish
+    // InvoicePostedEvent back through the Journal outbox. Wrapped by UseFinanceIdempotency() (SDD-INFRA-006).
+    registration.AddConsumer<InvoiceConfirmedEventConsumer>();
 }
 
 static void ConfigureWorkflow(IServiceCollection services)

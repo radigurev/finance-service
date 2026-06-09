@@ -1,8 +1,8 @@
 # SDD-INFRA-006 — Resilient Message Publisher (MassTransit + Outbox + Idempotency)
 
-> Status: Implemented (library: `AddFinanceMessageBus<TDbContext>`, `IdempotencyFilter<T>`, `UseFinanceIdempotency`, outbox/RabbitMQ/retry wiring; `IFinanceEvent` marker in `Finance.ServiceModel/Events/`). Deferred: per-service outbox tables/migrations (Batch 4+); concrete domain events (later batches).
+> Status: Implemented (library: `AddFinanceMessageBus<TDbContext>`, `IdempotencyFilter<T>`, `UseFinanceIdempotency`, outbox/RabbitMQ/retry wiring; `IFinanceEvent` marker in `Finance.ServiceModel/Events/`). Batch 16 (SDD-INV-001 / SDD-INT-WH-001) added an `AddFinanceMessageBus<TDbContext>(services, config, Action<IBusRegistrationConfigurator> configureConsumers)` overload so a PUBLISHING service can ALSO register consumers alongside its EF outbox. Deferred: per-service outbox tables/migrations (Batch 4+, landed per publishing service as they ship); remaining concrete domain events (later batches).
 > Owner: Platform
-> Last updated: 2026-05-30
+> Last updated: 2026-06-10
 > Category: Infrastructure
 > Related: SDD-INFRA-001, SDD-INFRA-004 (reuses its Redis `IConnectionMultiplexer` for idempotency), SDD-EVTLOG-001, SDD-INT-WH-001, SDD-AUDIT-001
 > Mirrors: Warehouse `Warehouse.Infrastructure.Messaging`
@@ -134,6 +134,8 @@ public sealed class IdempotencyFilter<T> : IFilter<ConsumeContext<T>> where T : 
 ## 5. Versioning Notes
 
 v1: JSON contracts; event-record version implied by package version of `Finance.ServiceModel`. Breaking schema change (renaming a property, removing a required field) MUST publish on a new topic name (e.g., `JournalEntryPostedEvent_v2`) and consumers MUST be upgraded before the old topic is retired.
+
+- **Batch 16 (SDD-INV-001 / SDD-INT-WH-001) — additive overload.** `AddFinanceMessageBus<TDbContext>(services, config, Action<IBusRegistrationConfigurator> configureConsumers)` lets a service that both PUBLISHES (EF outbox on its `TDbContext`) AND CONSUMES register its consumers in the same call as the outbox wiring — the `configureConsumers` callback runs against the `IBusRegistrationConfigurator` before the RabbitMQ host is configured. Used by `Finance.Invoices.API` (publishes `InvoiceConfirmedEvent`/`InvoiceCancelledEvent` + consumes the four Warehouse inbound events and `InvoicePostedEvent`) and by the Journal-side `InvoiceConfirmedEventConsumer`. This is additive — the existing parameterless-consumer `AddFinanceMessageBus<TDbContext>(config)` overload is unchanged; consume-only services keep using `AddEventLogConsumers`-style registration (SDD-EVTLOG-001).
 
 ## 6. Test Plan
 

@@ -1,3 +1,5 @@
+using System.Globalization;
+using Finance.Common.Enums;
 using Finance.Country.Abstractions;
 
 namespace Finance.Country.BG;
@@ -15,8 +17,14 @@ namespace Finance.Country.BG;
 public sealed class BulgariaStrategy : ICountryStrategy
 {
     private const string Bg = "BG";
+    private const int TaxDecimals = 2;
+    private const int NumberPadding = 6;
 
     private static readonly IReadOnlyList<PostingRuleTemplate> DefaultRules = BuildDefaultRules();
+
+    private const decimal StandardRate = 0.20m;
+
+    private static readonly IReadOnlyList<decimal> ValidTaxRates = [0.20m, 0.09m, 0.00m];
 
     /// <inheritdoc />
     public string CountryCode => Bg;
@@ -25,7 +33,53 @@ public sealed class BulgariaStrategy : ICountryStrategy
     public string BaseCurrencyCode => "BGN";
 
     /// <inheritdoc />
+    public decimal StandardTaxRate => StandardRate;
+
+    /// <inheritdoc />
     public IReadOnlyList<PostingRuleTemplate> GetDefaultPostingRules() => DefaultRules;
+
+    /// <inheritdoc />
+    public decimal ApplyTaxRounding(decimal amount)
+    {
+        return Math.Round(amount, TaxDecimals, MidpointRounding.AwayFromZero);
+    }
+
+    /// <inheritdoc />
+    public bool IsValidTaxRate(decimal rate)
+    {
+        if (rate < 0m)
+        {
+            return false;
+        }
+
+        foreach (decimal validRate in ValidTaxRates)
+        {
+            if (rate == validRate)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <inheritdoc />
+    public string GenerateDocumentNumber(InvoiceDocumentType documentType, long sequenceValue)
+    {
+        string prefix = PrefixFor(documentType);
+        string year = DateTimeOffset.UtcNow.Year.ToString(CultureInfo.InvariantCulture);
+        string padded = sequenceValue.ToString(CultureInfo.InvariantCulture).PadLeft(NumberPadding, '0');
+        return string.Concat(prefix, "-", year, "-", padded);
+    }
+
+    private static string PrefixFor(InvoiceDocumentType documentType) => documentType switch
+    {
+        InvoiceDocumentType.PurchaseInvoice => "ФПок",
+        InvoiceDocumentType.SaleInvoice => "ФПр",
+        InvoiceDocumentType.CreditNote => "КИ",
+        InvoiceDocumentType.DebitNote => "ДИ",
+        _ => throw new ArgumentOutOfRangeException(nameof(documentType), documentType, null)
+    };
 
     private static IReadOnlyList<PostingRuleTemplate> BuildDefaultRules() =>
     [

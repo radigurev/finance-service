@@ -1,3 +1,4 @@
+using Finance.Common.Enums;
 using Finance.Country.Abstractions;
 using Finance.Country.BG;
 using Microsoft.Extensions.DependencyInjection;
@@ -300,6 +301,80 @@ public sealed class BulgariaStrategyTests
             Assert.That(resolved, Is.InstanceOf<BulgariaStrategy>());
             Assert.That(registrationCount, Is.EqualTo(1));
         });
+    }
+
+    [Test]
+    public void BulgariaStrategy_ApplyTaxRounding_RoundsAwayFromZeroToTwoDecimals()
+    {
+        // Arrange
+        decimal raw = 12.345m;
+
+        // Act
+        decimal rounded = _sut.ApplyTaxRounding(raw);
+
+        // Assert
+        Assert.That(rounded, Is.EqualTo(12.35m));
+    }
+
+    [Test]
+    public void BulgariaStrategy_ApplyTaxRounding_IsDeterministic()
+    {
+        // Arrange
+        decimal raw = 99.005m;
+
+        // Act
+        decimal first = _sut.ApplyTaxRounding(raw);
+        decimal second = _sut.ApplyTaxRounding(raw);
+
+        // Assert
+        Assert.That(second, Is.EqualTo(first));
+    }
+
+    [TestCase(0.20)]
+    [TestCase(0.09)]
+    [TestCase(0.00)]
+    public void BulgariaStrategy_IsValidTaxRate_AcceptsRecognizedRates(decimal rate)
+    {
+        // Arrange — strategy created in SetUp.
+
+        // Act
+        bool valid = _sut.IsValidTaxRate(rate);
+
+        // Assert
+        Assert.That(valid, Is.True);
+    }
+
+    [TestCase(-0.01)]
+    [TestCase(0.05)]
+    [TestCase(0.21)]
+    public void BulgariaStrategy_IsValidTaxRate_RejectsUnrecognizedRates(decimal rate)
+    {
+        // Arrange — strategy created in SetUp.
+
+        // Act
+        bool valid = _sut.IsValidTaxRate(rate);
+
+        // Assert
+        Assert.That(valid, Is.False);
+    }
+
+    [TestCase(InvoiceDocumentType.PurchaseInvoice, "ФПок")]
+    [TestCase(InvoiceDocumentType.SaleInvoice, "ФПр")]
+    [TestCase(InvoiceDocumentType.CreditNote, "КИ")]
+    [TestCase(InvoiceDocumentType.DebitNote, "ДИ")]
+    public void BulgariaStrategy_GenerateDocumentNumber_PrefixesPerDocumentType(
+        InvoiceDocumentType documentType,
+        string expectedPrefix)
+    {
+        // Arrange
+        long sequenceValue = 42;
+        string year = DateTimeOffset.UtcNow.Year.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+        // Act
+        string number = _sut.GenerateDocumentNumber(documentType, sequenceValue);
+
+        // Assert
+        Assert.That(number, Is.EqualTo($"{expectedPrefix}-{year}-000042"));
     }
 
     private PostingRuleTemplate SingleRule(string ruleKey) =>

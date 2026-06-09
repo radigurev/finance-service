@@ -1,8 +1,8 @@
 # SDD-INFRA-003 — Centralized Sequence Generation (Auto-Code)
 
-> Status: Implemented (library: entity + config + generator + DI). Deferred: per-service `infrastructure.Sequences` table/migration (Batch 4+), `ICountryStrategy` format integration (until SDD-CTRY-001 is authored).
+> Status: Implemented (library: entity + config + generator + DI). Batch 16 (SDD-INV-001) added the public member `Task<long> NextValueAsync(string key, CancellationToken)` — the raw gapless counter, so the country owns the document-number format — and REALIZED the previously-deferred `ICountryStrategy.GenerateDocumentNumber` integration (the Invoices service formats the counter via the country strategy). Deferred: per-service `infrastructure.Sequences` table/migration (Batch 4+, landed for the publishing services as they ship).
 > Owner: Platform
-> Last updated: 2026-05-30
+> Last updated: 2026-06-10
 > Category: Infrastructure
 > Related: SDD-INFRA-001, SDD-ACCT-001, SDD-INV-001 (future), SDD-PAY-001 (future), SDD-INT-NAP-001 (future), SDD-CTRY-001 (future — country format seam)
 > Mirrors: Warehouse `SDD-INFRA-003`
@@ -99,6 +99,8 @@ Constants live in `Finance.Common.ErrorCodes.SequenceErrorCodes`.
 
 v1: built-in finance sequence keys per §2.1. Adding a new key is additive (no version bump). Changing an existing format pattern requires a `CHG-ENH-*` change spec because Bulgarian regulations require stability of the per-year sequence shape.
 
+- **Batch 16 (SDD-INV-001) — additive member.** `ISequenceGenerator` grew by a public `Task<long> NextValueAsync(string key, CancellationToken)` that returns the raw gapless counter value (no formatting) so the **country** owns the document-number format via `ICountryStrategy.GenerateDocumentNumber` (SDD-CTRY-001). This is additive (existing `NextAsync` formatted-output callers are unchanged). The previously-deferred `ICountryStrategy.GenerateDocumentNumber` integration is now realized by the Invoices service (`Finance.Invoices.API`): at Confirm it calls `NextValueAsync` for the per-document-type key (`PINV`/`SINV`/`CN`/`DN`) and formats the result through the country strategy.
+
 ## 6. Test Plan
 
 Batch-3 unit tests live in `src/Infrastructure/Finance.Infrastructure.Tests`. EF-touching unit tests use SQLite in-memory and run by default. Tests requiring real SQL Server row-level locking (`UPDLOCK, HOLDLOCK` concurrency) are `[Category("Integration")]` and excluded from the default offline run.
@@ -119,6 +121,6 @@ Batch-3 unit tests live in `src/Infrastructure/Finance.Infrastructure.Tests`. EF
 ## 7. Open Items
 
 - **Deferred — per-service table/migration:** the `infrastructure.Sequences` table + EF migration land in each publishing service DbContext in Batch 4+. The library ships only the `SequenceCounter` entity + `IEntityTypeConfiguration`.
-- **Deferred — `ICountryStrategy` integration:** when SDD-CTRY-001 is authored, the country strategy supplies the `IDocumentNumberFormatter`. Until then `DefaultDocumentNumberFormatter` (BG-style) is the only formatter.
+- **`ICountryStrategy` integration — REALIZED (Batch 16, SDD-INV-001).** The country strategy now owns the document-number FORMAT: `ICountryStrategy.GenerateDocumentNumber(InvoiceDocumentType, long sequenceValue)` (SDD-CTRY-001) formats the raw gapless counter returned by the new `ISequenceGenerator.NextValueAsync`. The library's `DefaultDocumentNumberFormatter` (BG-style) remains the default for callers that use the formatted `NextAsync` path; format-owning callers (the Invoices service) use `NextValueAsync` + the country strategy.
 - Year-end rollover ceremony: how to safely retire 2026 sequences and create 2027 (automatic per Yearly policy, but ops verification needed).
 - Multi-tenant: when multi-country deployments arrive, sequences MUST be partitioned by country code in the composite key.

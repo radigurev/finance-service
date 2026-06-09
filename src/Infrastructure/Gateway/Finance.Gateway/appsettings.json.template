@@ -13,6 +13,7 @@
     "NomenclatureApi": "<NOMENCLATURE_API_URL>",
     "EventLogApi": "<EVENTLOG_API_URL>",
     "JournalApi": "<JOURNAL_API_URL>",
+    "InvoicesApi": "<INVOICES_API_URL>",
     "PeriodsApi": "<PERIODS_API_URL>"
   },
   "Kestrel": {
@@ -120,6 +121,12 @@
           "Path": "/api/v1/posting/{**catch-all}"
         }
       },
+      "invoices-route": {
+        "ClusterId": "invoices-cluster",
+        "Match": {
+          "Path": "/api/v1/invoices/{**catch-all}"
+        }
+      },
       "periods-route": {
         "ClusterId": "periods-cluster",
         "Match": {
@@ -160,6 +167,13 @@
         "Destinations": {
           "journal-api": {
             "Address": "<JOURNAL_API_URL>"
+          }
+        }
+      },
+      "invoices-cluster": {
+        "Destinations": {
+          "invoices-api": {
+            "Address": "<INVOICES_API_URL>"
           }
         }
       },

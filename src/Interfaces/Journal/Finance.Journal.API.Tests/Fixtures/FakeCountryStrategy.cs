@@ -1,3 +1,4 @@
+using Finance.Common.Enums;
 using Finance.Country.Abstractions;
 
 namespace Finance.Journal.API.Tests.Fixtures;
@@ -26,7 +27,21 @@ public sealed class FakeCountryStrategy : ICountryStrategy
     public string BaseCurrencyCode => "BGN";
 
     /// <inheritdoc />
+    public decimal StandardTaxRate => 0.20m;
+
+    /// <inheritdoc />
     public IReadOnlyList<PostingRuleTemplate> GetDefaultPostingRules() => _templates;
+
+    /// <inheritdoc />
+    public decimal ApplyTaxRounding(decimal amount) =>
+        Math.Round(amount, 2, MidpointRounding.AwayFromZero);
+
+    /// <inheritdoc />
+    public bool IsValidTaxRate(decimal rate) => rate >= 0m;
+
+    /// <inheritdoc />
+    public string GenerateDocumentNumber(InvoiceDocumentType documentType, long sequenceValue) =>
+        $"{documentType}-{sequenceValue}";
 
     /// <summary>Builds a structurally balanceable template (one debit, one credit) for the given key.</summary>
     /// <param name="ruleKey">The template's rule key.</param>

@@ -353,6 +353,23 @@ export const en = {
     MISSING_POSTING_AMOUNT: 'An amount required by the rule was not supplied.',
     INVALID_POSTING_RULE_KEY: 'The rule key is empty, too long, or malformed.',
     INVALID_POSTING_RULE_LINE: 'A rule line has an invalid account, side, or amount source.',
-    POSTING_RULE_ACCOUNT_NOT_FOUND: 'A rule line account code does not resolve to a postable account.'
+    POSTING_RULE_ACCOUNT_NOT_FOUND: 'A rule line account code does not resolve to a postable account.',
+    INVOICE_NOT_FOUND: 'Invoice not found.',
+    INVOICE_LINES_REQUIRED: 'An invoice must have at least one line.',
+    INVALID_INVOICE_DOCUMENT_TYPE: 'Invalid invoice document type.',
+    INVOICE_COUNTERPARTY_REQUIRED: 'A counterparty is required.',
+    INVALID_INVOICE_CURRENCY: 'The invoice currency code is invalid.',
+    INVALID_INVOICE_DATE: 'The issue date is invalid.',
+    INVALID_INVOICE_DUE_DATE: 'The due date must be on or after the issue date.',
+    INVALID_INVOICE_LINE: 'A line has an invalid quantity or unit price.',
+    INVALID_INVOICE_TAX_RATE: 'A line tax rate is invalid or not recognized.',
+    INVOICE_TOTALS_MISMATCH: 'The invoice totals do not reconcile.',
+    INVOICE_NOT_DRAFT: 'Only a draft invoice can be modified or confirmed.',
+    INVOICE_NOT_CONFIRMED: 'The invoice is not confirmed, or its posting is not yet linked.',
+    INVOICE_POSTED_IMMUTABLE: 'A confirmed or posted invoice is immutable. Issue a credit or debit note to correct.',
+    INVALID_INVOICE_STATE_TRANSITION: 'That invoice transition is not allowed.',
+    INVOICE_PERIOD_CLOSED: 'The issue date falls in a closed fiscal period.',
+    INVOICE_DUPLICATE_DOCUMENT_NUMBER: 'The invoice already has a document number.',
+    INVOICE_CANCEL_REASON_REQUIRED: 'A reason is required to cancel an invoice.'
   }
 };

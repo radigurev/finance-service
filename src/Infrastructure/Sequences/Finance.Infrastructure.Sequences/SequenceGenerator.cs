@@ -60,6 +60,16 @@ public sealed class SequenceGenerator<TContext> : ISequenceGenerator
         return _formatter.Format(sequenceKey, periodSegment, counter);
     }
 
+    /// <inheritdoc />
+    public async Task<long> NextValueAsync(string sequenceKey, CancellationToken cancellationToken)
+    {
+        SequenceDefinition definition = ResolveDefinition(sequenceKey);
+        DateTimeOffset now = _timeProvider.GetUtcNow();
+        string compositeKey = SequenceKeyComposer.CompositeKey(sequenceKey, definition.ResetPolicy, now);
+
+        return await AllocateNextCounterAsync(compositeKey, now, cancellationToken).ConfigureAwait(false);
+    }
+
     private SequenceDefinition ResolveDefinition(string sequenceKey)
     {
         if (string.IsNullOrWhiteSpace(sequenceKey))

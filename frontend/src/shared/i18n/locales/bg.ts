@@ -353,6 +353,23 @@ export const bg = {
     MISSING_POSTING_AMOUNT: 'Не е подадена сума, изисквана от правилото.',
     INVALID_POSTING_RULE_KEY: 'Ключът на правилото е празен, твърде дълъг или невалиден.',
     INVALID_POSTING_RULE_LINE: 'Ред от правилото има невалидна сметка, страна или източник на сумата.',
-    POSTING_RULE_ACCOUNT_NOT_FOUND: 'Код на сметка от ред на правилото не съответства на сметка, по която може да се осчетоводява.'
+    POSTING_RULE_ACCOUNT_NOT_FOUND: 'Код на сметка от ред на правилото не съответства на сметка, по която може да се осчетоводява.',
+    INVOICE_NOT_FOUND: 'Фактурата не е намерена.',
+    INVOICE_LINES_REQUIRED: 'Фактурата трябва да има поне един ред.',
+    INVALID_INVOICE_DOCUMENT_TYPE: 'Невалиден тип на документа.',
+    INVOICE_COUNTERPARTY_REQUIRED: 'Изисква се контрагент.',
+    INVALID_INVOICE_CURRENCY: 'Кодът на валутата на фактурата е невалиден.',
+    INVALID_INVOICE_DATE: 'Датата на издаване е невалидна.',
+    INVALID_INVOICE_DUE_DATE: 'Падежът трябва да е на или след датата на издаване.',
+    INVALID_INVOICE_LINE: 'Ред има невалидно количество или единична цена.',
+    INVALID_INVOICE_TAX_RATE: 'Данъчната ставка на ред е невалидна или непозната.',
+    INVOICE_TOTALS_MISMATCH: 'Сумите по фактурата не се равняват.',
+    INVOICE_NOT_DRAFT: 'Само чернова на фактура може да се променя или потвърждава.',
+    INVOICE_NOT_CONFIRMED: 'Фактурата не е потвърдена или осчетоводяването ѝ още не е свързано.',
+    INVOICE_POSTED_IMMUTABLE: 'Потвърдена или осчетоводена фактура е неизменяема. Издайте кредитно или дебитно известие за корекция.',
+    INVALID_INVOICE_STATE_TRANSITION: 'Този преход на фактурата не е разрешен.',
+    INVOICE_PERIOD_CLOSED: 'Датата на издаване попада в затворен счетоводен период.',
+    INVOICE_DUPLICATE_DOCUMENT_NUMBER: 'Фактурата вече има номер на документ.',
+    INVOICE_CANCEL_REASON_REQUIRED: 'Изисква се причина за анулиране на фактура.'
   }
 };

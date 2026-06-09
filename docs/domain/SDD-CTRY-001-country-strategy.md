@@ -1,8 +1,8 @@
 # SDD-CTRY-001 — Country Strategy Interface (minimal v1)
 
-> Status: Implemented (Batch 14 — shipped + 15 green `[Unit]` tests + validated. The lean `ICountryStrategy` seam + a single `BulgariaStrategy` binding. v1 exposes ONLY what SDD-FIN-006 needs now: country identity (`CountryCode`, `BaseCurrencyCode`) + `GetDefaultPostingRules()`. All other country responsibilities the plan lists — tax calc/rounding, document-number formatting, statement layouts, regulatory exports, CoA seed, exchange-rate provider — are DEFERRED to their owning specs and the interface is GROWN per spec, never speculatively widened. No country factory/resolver/registry: a single static `AddScoped<ICountryStrategy, BulgariaStrategy>()` binding (FINANCE-MICROSERVICES-PLAN §1.3). Multi-tenant country resolution is DEFERRED to a future `CHG-FEAT-*`.)
+> Status: Implemented (Batch 14 — shipped + 15 green `[Unit]` tests + validated. The lean `ICountryStrategy` seam + a single `BulgariaStrategy` binding. v1 exposed ONLY what SDD-FIN-006 needed: country identity (`CountryCode`, `BaseCurrencyCode`) + `GetDefaultPostingRules()`. The interface is GROWN per spec, never speculatively widened — Batch 16 (SDD-INV-001 / SDD-INT-WH-001) added FOUR shipped members (`ApplyTaxRounding`, `IsValidTaxRate`, `GenerateDocumentNumber`, `StandardTaxRate`), implemented in `BulgariaStrategy`, so the interface is now SEVEN members (see §5 growth log). The remaining country responsibilities the plan lists — statement layouts, regulatory exports, CoA seed, exchange-rate provider, counterparty validation — stay DEFERRED to their owning specs. No country factory/resolver/registry: a single static `AddScoped<ICountryStrategy, BulgariaStrategy>()` binding (FINANCE-MICROSERVICES-PLAN §1.3). Multi-tenant country resolution is DEFERRED to a future `CHG-FEAT-*`.)
 > Owner: Finance
-> Last updated: 2026-06-04
+> Last updated: 2026-06-10
 > Category: Domain
 > Projects: `Finance.Country.Abstractions` (the `ICountryStrategy` contract + posting-rule template DTOs) and `Finance.Country.BG` (`BulgariaStrategy`) — shared libraries (FINANCE-MICROSERVICES-PLAN §2.1). Consumed first by `Finance.Journal.API` (port **6004**).
 > Related: SDD-FIN-006 (Posting Engine + Posting Rules — the FIRST and ONLY v1 consumer; `GetDefaultPostingRules()` exists for FIN-006's `PostingRuleSeeder`), SDD-ACCT-001 (Chart of Accounts — posting-rule line account selectors reference account codes; the BG defaults use НСС account codes; the CoA seed itself is DEFERRED here), SDD-FIN-001 (Double-Entry Engine — a returned template MUST be balanceable so the entry it derives satisfies the balance invariant), SDD-FIN-005 (Multi-Currency Engine — owns the deferred exchange-rate-provider member; `BaseCurrencyCode` here is the single base-currency datum FIN-006 needs), SDD-INFRA-003 (Sequence Generation — owns the deferred `GenerateDocumentNumber` member), SDD-INT-NAP-001 (НАП export — owns the deferred regulatory-export members), SDD-CTRY-BG-001 (Bulgaria Strategy — the FULLER BG strategy: tax system, rounding, CoA seed JSON, statement layouts, counterparty validation; this spec is only the minimal seam those grow onto), SDD-RPT-001/-002/-003 (Reporting — own the deferred statement-layout members)
@@ -47,7 +47,7 @@ This spec defines the **minimal v1** of that seam — deliberately lean. The fir
   - `string CountryCode { get; }` — the ISO 3166-1 alpha-2 country code this strategy serves (e.g. `"BG"`). Used for tagging seeded reference data (posting rules carry the `CountryCode`, matching SDD-ACCT-001's account `CountryCode`).
   - `string BaseCurrencyCode { get; }` — the ISO 4217 alphabetic base currency the country books in (e.g. `"BGN"`). This is the single base-currency datum the engine needs; the full multi-currency / rate-provider surface is SDD-FIN-005.
   - `IReadOnlyList<PostingRuleTemplate> GetDefaultPostingRules()` — the country's default posting-rule templates, returned as a read-only list for SDD-FIN-006's seeder to upsert into the rule store.
-- The interface MUST NOT declare any other member in v1. Each deferred responsibility (§1) is added ONLY by the spec that owns it, with that spec recording the interface growth in its Versioning Notes. This is an explicit Interface-Segregation decision, not an oversight.
+- The interface MUST NOT declare any other member in v1. Each deferred responsibility (§1) is added ONLY by the spec that owns it, with that spec recording the interface growth in its Versioning Notes. This is an explicit Interface-Segregation decision, not an oversight. (Growth has since occurred per this rule: Batch 16 / SDD-INV-001 added the tax + document-number members — `ApplyTaxRounding`, `IsValidTaxRate`, `GenerateDocumentNumber`, `StandardTaxRate` — see the §5 growth log.)
 - `CountryCode` and `BaseCurrencyCode` MUST be non-null, non-empty, and uppercase. They MUST be stable across calls (the same instance always returns the same values).
 
 ### 2.2 The posting-rule template contract (MUST)
@@ -121,14 +121,19 @@ The errors that *relate* to country data — `POSTING_RULE_UNBALANCED`, `DUPLICA
 `Finance.Country.Abstractions` (`ICountryStrategy` + template DTOs) and `Finance.Country.BG` (`BulgariaStrategy`) are the v1 shared libraries.
 
 - **v1 — Initial specification (Batch 14).** Lean three-member `ICountryStrategy` (`CountryCode`, `BaseCurrencyCode`, `GetDefaultPostingRules()`); `PostingRuleTemplate`/`PostingRuleLineTemplate` + `PostingDebitOrCredit`/`PostingAmountSource` enums in `Finance.Country.Abstractions`; `BulgariaStrategy` (`BG`/`BGN` + a handful of НСС sample templates) in `Finance.Country.BG`; single `AddScoped<ICountryStrategy, BulgariaStrategy>()` binding; **no factory/resolver/registry**.
-- **Interface growth is additive and per-spec** — adding a NEW member to `ICountryStrategy` is a **breaking change to the interface** (every implementation must implement it), so each deferred member is introduced by the spec that needs it, in lock-step with at least one implementation (`BulgariaStrategy`) and a default for any future country. Growth order (anticipated):
-  - **`GenerateDocumentNumber(...)`** — SDD-INFRA-003 country-format work / SDD-INV-001.
-  - **`ApplyTaxRounding(...)` + tax-rate access** — SDD-CTRY-BG-001 / SDD-INV-001.
-  - **CoA seed** (`GetDefaultChartOfAccounts()`) — SDD-CTRY-BG-001 / SDD-ACCT-001 Phase 2.
-  - **Statement layouts** — SDD-RPT-001/-002/-003.
-  - **Regulatory export definitions** — SDD-INT-NAP-001.
-  - **Exchange-rate provider** — SDD-FIN-005 / SDD-INT-BNB-001.
-  - **Counterparty / legal-metadata validation** — SDD-CTRY-BG-001.
+- **Interface growth is additive and per-spec** — adding a NEW member to `ICountryStrategy` is a **breaking change to the interface** (every implementation must implement it), so each deferred member is introduced by the spec that needs it, in lock-step with at least one implementation (`BulgariaStrategy`) and a default for any future country. Growth log / order:
+  - **Batch 16 (SDD-INV-001 / SDD-INT-WH-001) — GROWN (shipped).** `ICountryStrategy` grew from the three v1 members by FOUR shipped members, implemented in `BulgariaStrategy`:
+    - `decimal ApplyTaxRounding(decimal amount)` — rounds a monetary amount per the country rounding policy (`MidpointRounding.AwayFromZero` to 2 dp for BG).
+    - `bool IsValidTaxRate(decimal rate)` — whether a tax rate is legal for the country (BG recognizes 20% / 9% / 0%).
+    - `string GenerateDocumentNumber(InvoiceDocumentType documentType, long sequenceValue)` — the country-specific document-number FORMAT, fed the raw gapless counter from `ISequenceGenerator.NextValueAsync` (SDD-INFRA-003); BG prefixes ФПок (purchase) / ФПр (sale) / КИ (credit note) / ДИ (debit note).
+    - `decimal StandardTaxRate { get; }` — the country's standard rate (BG = 20%).
+    The base currency stays `BGN`. SDD-INV-001 §5 is the owning record for the tax + document-number members; SDD-INFRA-003 records the matching `NextValueAsync` member. The interface is now SEVEN members (the three v1 members + these four).
+  - Anticipated further growth:
+    - **CoA seed** (`GetDefaultChartOfAccounts()`) — SDD-CTRY-BG-001 / SDD-ACCT-001 Phase 2.
+    - **Statement layouts** — SDD-RPT-001/-002/-003.
+    - **Regulatory export definitions** — SDD-INT-NAP-001.
+    - **Exchange-rate provider** — SDD-FIN-005 / SDD-INT-BNB-001.
+    - **Counterparty / legal-metadata validation** — SDD-CTRY-BG-001.
 - **Multi-tenant resolution** (a factory/resolver around the interface) is a future `CHG-FEAT-*`; it is additive to consumers (they still inject `ICountryStrategy`) and does NOT change this contract.
 - Changing the SHAPE of an existing member (e.g. `GetDefaultPostingRules` return type) is breaking and requires a coordinated bump across `Finance.Country.Abstractions`, every implementation, and SDD-FIN-006.
 

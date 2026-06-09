@@ -7,7 +7,8 @@ namespace Finance.Infrastructure.Messaging;
 /// Test-only registration helper that wires the MassTransit in-memory <c>TestHarness</c> so consumers and
 /// publishers can be exercised without a real RabbitMQ broker, real Redis, or real SQL Server outbox
 /// tables (SDD-INFRA-006 §3, §6). Production code MUST use
-/// <see cref="MessagingServiceCollectionExtensions.AddFinanceMessageBus{TDbContext}"/> instead.
+/// <see cref="MessagingServiceCollectionExtensions.AddFinanceMessageBus{TDbContext}(Microsoft.Extensions.DependencyInjection.IServiceCollection, Microsoft.Extensions.Configuration.IConfiguration)"/>
+/// instead.
 /// </summary>
 public static class FinanceMessagingTestHarnessExtensions
 {

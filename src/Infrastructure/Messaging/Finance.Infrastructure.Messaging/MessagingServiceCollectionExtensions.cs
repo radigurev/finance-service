@@ -42,6 +42,26 @@ public static class MessagingServiceCollectionExtensions
         IConfiguration configuration)
         where TDbContext : DbContext
     {
+        return services.AddFinanceMessageBus<TDbContext>(configuration, configureConsumers: null);
+    }
+
+    /// <summary>
+    /// Registers the Finance message bus for a publishing service that ALSO consumes events. Identical to
+    /// <see cref="AddFinanceMessageBus{TDbContext}(IServiceCollection, IConfiguration)"/> but invokes
+    /// <paramref name="configureConsumers"/> so the caller can register its consumers (each wrapped by the
+    /// shared idempotency filter) inside the same MassTransit registration as the EF outbox (SDD-INFRA-006).
+    /// </summary>
+    /// <typeparam name="TDbContext">The publishing service DbContext that owns the outbox tables.</typeparam>
+    /// <param name="services">The service collection to register into.</param>
+    /// <param name="configuration">Configuration carrying the <c>RabbitMQ</c> section and <c>ConnectionStrings:Redis</c>.</param>
+    /// <param name="configureConsumers">An optional delegate to register consumers on the MassTransit configurator.</param>
+    /// <returns>The same <paramref name="services"/> for chaining.</returns>
+    public static IServiceCollection AddFinanceMessageBus<TDbContext>(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        Action<IBusRegistrationConfigurator>? configureConsumers)
+        where TDbContext : DbContext
+    {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
 
@@ -53,6 +73,7 @@ public static class MessagingServiceCollectionExtensions
         services.AddMassTransit(registration =>
         {
             ConfigureOutbox<TDbContext>(registration);
+            configureConsumers?.Invoke(registration);
             ConfigureRabbitMqTransport(registration, options);
         });
 
