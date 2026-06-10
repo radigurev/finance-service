@@ -6,6 +6,7 @@ import {
   CurrenciesListPage,
   ExchangeRatesPage,
   JournalEntriesListPage,
+  InvoicesListPage,
   FiscalPeriodsListPage,
   TrialBalancePage,
   AccountLedgerPage,
@@ -28,6 +29,7 @@ export function App() {
         <Route index element={<Navigate to="/accounts" replace />} />
         <Route path="accounts" element={<AccountsListPage />} />
         <Route path="journal-entries" element={<JournalEntriesListPage />} />
+        <Route path="invoices" element={<InvoicesListPage />} />
         <Route path="posting-rules" element={<PostingRulesListPage />} />
         <Route path="periods" element={<FiscalPeriodsListPage />} />
         <Route path="general-ledger" element={<TrialBalancePage />} />

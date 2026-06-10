@@ -28,6 +28,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { to: '/accounts', labelKey: 'nav.accounts' },
   { to: '/journal-entries', labelKey: 'nav.journal' },
+  { to: '/invoices', labelKey: 'nav.invoices' },
   { to: '/posting-rules', labelKey: 'nav.postingRules' },
   { to: '/general-ledger', labelKey: 'nav.generalLedger' },
   { to: '/periods', labelKey: 'nav.periods' },

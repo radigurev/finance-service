@@ -3,6 +3,7 @@ export { AccountsListPage } from './AccountsListPage';
 export { CurrenciesListPage } from './CurrenciesListPage';
 export { ExchangeRatesPage } from './ExchangeRatesPage';
 export { JournalEntriesListPage } from './JournalEntriesListPage';
+export { InvoicesListPage } from './InvoicesListPage';
 export { FiscalPeriodsListPage } from './FiscalPeriodsListPage';
 export { TrialBalancePage } from './TrialBalancePage';
 export { AccountLedgerPage } from './AccountLedgerPage';

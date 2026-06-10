@@ -4,5 +4,8 @@ export { CurrencyFormDialog } from './CurrencyFormDialog';
 export { JournalEntryFormDialog } from './JournalEntryFormDialog';
 export { ReverseJournalEntryDialog } from './ReverseJournalEntryDialog';
 export { GeneratePeriodsDialog } from './GeneratePeriodsDialog';
+export { InvoiceFormDialog } from './InvoiceFormDialog';
+export { CancelInvoiceDialog } from './CancelInvoiceDialog';
+export { CreateNoteDialog } from './CreateNoteDialog';
 export { PostingRuleFormDialog } from './PostingRuleFormDialog';
 export { ApplyPostingRuleDialog } from './ApplyPostingRuleDialog';

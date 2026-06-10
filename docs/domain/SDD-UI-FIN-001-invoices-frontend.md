@@ -1,6 +1,6 @@
 # SDD-UI-FIN-001 — Invoices Frontend Feature (Purchase/Sale Invoices + Credit/Debit Notes)
 
-> Status: **Drafted** (freshly authored by the spec-writer Phase 1; not yet committed/built). Per the repo status lifecycle (`docs/README.md` → "Status lifecycle" and `CLAUDE.md` §0): this spec becomes **`Active`** when the Phase-6 (`implement-frontend`) UI work begins, and **`Implemented`** only after the frontend ships AND the Vitest suite + the `ui-validate` (Chrome DevTools MCP) golden-path checks pass (Phase 7). It documents the **planned** Invoices SPA surface; no TypeScript/React code is authored by this spec.
+> Status: **Active** (Phase-6 `implement-frontend` work started 2026-06-10; becomes `Implemented` once the Vitest suite + `ui-validate` golden-path checks pass). Per the repo status lifecycle (`docs/README.md` → "Status lifecycle" and `CLAUDE.md` §0): this spec becomes **`Active`** when the Phase-6 (`implement-frontend`) UI work begins, and **`Implemented`** only after the frontend ships AND the Vitest suite + the `ui-validate` (Chrome DevTools MCP) golden-path checks pass (Phase 7). It documents the **planned** Invoices SPA surface; no TypeScript/React code is authored by this spec.
 > Owner: Frontend
 > Last updated: 2026-06-10
 > Category: Domain (feature UI surface). The companion frontend **shell** spec `SDD-UI-001` (theme, density, i18n, navigation, Atomic Design, axios/correlation, error helper) lives in `docs/infrastructure/`; this spec depends on it and MUST NOT re-define shell behavior.
