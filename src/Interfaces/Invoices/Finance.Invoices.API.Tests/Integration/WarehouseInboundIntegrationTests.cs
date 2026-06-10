@@ -109,9 +109,12 @@ public sealed class WarehouseInboundIntegrationTests
     private async Task PublishAsync<TEvent>(TEvent @event)
         where TEvent : class
     {
-        using IServiceScope scope = _factory.Services.CreateScope();
-        IPublishEndpoint publish = scope.ServiceProvider.GetRequiredService<IPublishEndpoint>();
-        await publish.Publish(@event);
+        // Publish transport-direct via IBus, NOT a scoped IPublishEndpoint: with the EF Core bus outbox
+        // (UseBusOutbox) a scoped publish enrolls the message in the outbox and only sends it on the
+        // ambient DbContext's SaveChanges. Real Warehouse events originate from another host and reach
+        // RabbitMQ directly, which IBus.Publish reproduces here (SDD-INT-WH-001 §2.5, SDD-INFRA-006).
+        IBus bus = _factory.Services.GetRequiredService<IBus>();
+        await bus.Publish(@event);
     }
 
     private async Task WaitForDraftAsync(Guid sourceDocumentId)
