@@ -11,7 +11,8 @@ namespace Finance.Infrastructure.Stateful.Tests.Messaging;
 /// <summary>
 /// Unit tests for <see cref="IdempotencyFilter{T}"/> covering the Redis <c>SETNX</c> idempotency rule
 /// (SDD-INFRA-006 §2.5): the first occurrence of a <c>MessageId</c> is forwarded down the pipe while a
-/// replay is skipped. The Redis <c>SETNX</c> seam is faked via a mocked
+/// replay is skipped, and a FAILED consume releases the claim so MassTransit's retry and dead-letter
+/// policy can run (CHG-FIX-006). The Redis <c>SETNX</c> seam is faked via a mocked
 /// <see cref="IConnectionMultiplexer"/>; no real Redis is required.
 /// </summary>
 [TestFixture]
@@ -89,6 +90,73 @@ public sealed class IdempotencyFilterTests
                 It.Is<TimeSpan?>(ttl => ttl == TimeSpan.FromDays(7)),
                 When.NotExists),
             Times.Once);
+    }
+
+    /// <summary>
+    /// When the downstream pipe throws, the claim is deleted and the original exception propagates with its
+    /// identity intact, so MassTransit's retry and dead-letter policy governs the message (CHG-FIX-006).
+    /// </summary>
+    [Test]
+    public void Send_DownstreamPipeThrows_DeletesProcessedKeyAndRethrowsOriginalException()
+    {
+        // Arrange
+        SetNxReturns(isFirstOccurrence: true);
+        InvalidOperationException consumerFailure = new("Consumer failed.");
+        _next
+            .Setup(pipe => pipe.Send(It.IsAny<ConsumeContext<SampleFinanceEvent>>()))
+            .ThrowsAsync(consumerFailure);
+        IdempotencyFilter<SampleFinanceEvent> filter = BuildFilter();
+        Guid messageId = Guid.NewGuid();
+        ConsumeContext<SampleFinanceEvent> context = BuildContext(messageId);
+
+        // Act
+        InvalidOperationException? thrown = Assert.ThrowsAsync<InvalidOperationException>(
+            async () => await filter.Send(context, _next.Object));
+
+        // Assert
+        Assert.Multiple(() =>
+        {
+            Assert.That(thrown, Is.SameAs(consumerFailure));
+            _database.Verify(
+                db => db.KeyDeleteAsync(
+                    It.Is<RedisKey>(key => key == $"finance:processed:{messageId}"),
+                    It.IsAny<CommandFlags>()),
+                Times.Once);
+            _next.Verify(pipe => pipe.Send(context), Times.Once);
+        });
+    }
+
+    /// <summary>
+    /// A genuine duplicate arriving after a SUCCESSFUL consume is still short-circuited: the pipe is not
+    /// invoked a second time and the claim is left in place (SDD-INFRA-006 §2.5, CHG-FIX-006).
+    /// </summary>
+    [Test]
+    public async Task Send_GenuineDuplicateAfterSuccessfulConsume_DoesNotInvokeNextAgain_AndKeepsClaim()
+    {
+        // Arrange
+        _database
+            .SetupSequence(db => db.StringSetAsync(
+                It.IsAny<RedisKey>(),
+                It.IsAny<RedisValue>(),
+                It.IsAny<TimeSpan?>(),
+                It.IsAny<When>()))
+            .ReturnsAsync(true)
+            .ReturnsAsync(false);
+        IdempotencyFilter<SampleFinanceEvent> filter = BuildFilter();
+        ConsumeContext<SampleFinanceEvent> context = BuildContext(Guid.NewGuid());
+
+        // Act
+        await filter.Send(context, _next.Object);
+        await filter.Send(context, _next.Object);
+
+        // Assert
+        Assert.Multiple(() =>
+        {
+            _next.Verify(pipe => pipe.Send(context), Times.Once);
+            _database.Verify(
+                db => db.KeyDeleteAsync(It.IsAny<RedisKey>(), It.IsAny<CommandFlags>()),
+                Times.Never);
+        });
     }
 
     /// <summary>A null consume context is rejected with an ArgumentNullException.</summary>

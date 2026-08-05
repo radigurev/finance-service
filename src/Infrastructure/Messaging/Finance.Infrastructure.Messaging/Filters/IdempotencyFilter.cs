@@ -13,6 +13,10 @@ namespace Finance.Infrastructure.Messaging.Filters;
 /// logged and skipped so consumers cannot double-post. When the transport supplies no inbound
 /// <c>MessageId</c>, the filter falls back to a freshly generated identifier so the message is always
 /// treated as a first occurrence rather than rejected.
+/// A consume that FAILS releases the claim before the exception is rethrown (CHG-FIX-006), so the
+/// outer <c>UseMessageRetry</c> filter re-enters this filter on a genuinely unprocessed message and
+/// MassTransit's retry and dead-letter policy runs to completion instead of the failed message being
+/// short-circuited as a duplicate of itself and silently acknowledged.
 /// </summary>
 /// <typeparam name="T">The consumed message contract type.</typeparam>
 public sealed class IdempotencyFilter<T> : IFilter<ConsumeContext<T>>
@@ -40,11 +44,17 @@ public sealed class IdempotencyFilter<T> : IFilter<ConsumeContext<T>>
     /// <summary>
     /// Claims the message identifier in Redis and forwards the first occurrence to <paramref name="next"/>,
     /// short-circuiting and logging any duplicate. Redis failures propagate so MassTransit retries rather
-    /// than risk processing the same message twice.
+    /// than risk processing the same message twice. When <paramref name="next"/> throws, the claim is
+    /// released and the original exception is rethrown with its stack intact (CHG-FIX-006) so the message
+    /// is not treated as already processed on redelivery and MassTransit's retry and dead-letter policy
+    /// governs its fate.
     /// </summary>
     /// <param name="context">The consume context carrying the message and its identifier.</param>
     /// <param name="next">The downstream pipe representing the remaining consume pipeline.</param>
-    /// <returns>A task that completes when the message has been processed or skipped.</returns>
+    /// <returns>
+    /// A task that completes when the message has been processed or skipped, and that faults with the
+    /// downstream exception once the claim has been released.
+    /// </returns>
     public async Task Send(ConsumeContext<T> context, IPipe<ConsumeContext<T>> next)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -68,7 +78,15 @@ public sealed class IdempotencyFilter<T> : IFilter<ConsumeContext<T>>
             return;
         }
 
-        await next.Send(context).ConfigureAwait(false);
+        try
+        {
+            await next.Send(context).ConfigureAwait(false);
+        }
+        catch
+        {
+            await ReleaseClaimAsync(database, key, messageId).ConfigureAwait(false);
+            throw;
+        }
     }
 
     /// <summary>Describes this filter for MassTransit pipeline diagnostics (<c>probe</c>).</summary>
@@ -77,6 +95,39 @@ public sealed class IdempotencyFilter<T> : IFilter<ConsumeContext<T>>
     {
         ArgumentNullException.ThrowIfNull(context);
         context.CreateFilterScope("financeIdempotency");
+    }
+
+    /// <summary>
+    /// Deletes the Redis claim for a message whose downstream consume failed, so the redelivery produced by
+    /// the outer retry filter is seen as a first occurrence rather than as a duplicate of itself
+    /// (CHG-FIX-006).
+    /// </summary>
+    /// <param name="database">The Redis database holding the claim.</param>
+    /// <param name="key">The <c>finance:processed:{MessageId}</c> key to release.</param>
+    /// <param name="messageId">The message identifier the claim was taken for, used for logging.</param>
+    /// <returns>A task that completes when the claim has been released.</returns>
+    private async Task ReleaseClaimAsync(IDatabase database, string key, Guid messageId)
+    {
+        try
+        {
+            await database.KeyDeleteAsync(key).ConfigureAwait(false);
+        }
+        catch (RedisException releaseFailure)
+        {
+            _logger.LogError(
+                releaseFailure,
+                "Failed to release the idempotency claim for message {MessageId} of type {MessageType} after a failed consume. The claim is still held, so a redelivery within the {TtlDays}-day window will be skipped as a duplicate and the message will be acknowledged without being processed.",
+                messageId,
+                typeof(T).Name,
+                ProcessedTtl.TotalDays);
+
+            return;
+        }
+
+        _logger.LogWarning(
+            "Released idempotency claim for message {MessageId} of type {MessageType} after a failed consume; retry and dead-letter policy applies.",
+            messageId,
+            typeof(T).Name);
     }
 
     /// <summary>
