@@ -25,6 +25,12 @@ public static class SensitiveAuditEventTypes
     /// <summary>Revocation of a finance RBAC permission.</summary>
     public const string PermissionRevoked = nameof(PermissionRevoked);
 
+    /// <summary>Cancellation (voiding) of a draft cash payment (SDD-PAY-001 §2.6, §2.15).</summary>
+    public const string PaymentCancelled = nameof(PaymentCancelled);
+
+    /// <summary>Reversal of a posted cash payment (SDD-PAY-001 §2.7, §2.15).</summary>
+    public const string PaymentReversed = nameof(PaymentReversed);
+
     private static readonly HashSet<string> Values = new(StringComparer.Ordinal)
     {
         PeriodClosed,
@@ -33,6 +39,8 @@ public static class SensitiveAuditEventTypes
         JournalEntryReversed,
         AccountDeactivated,
         PermissionRevoked,
+        PaymentCancelled,
+        PaymentReversed,
     };
 
     /// <summary>

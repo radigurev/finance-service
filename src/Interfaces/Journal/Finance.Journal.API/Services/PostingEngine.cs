@@ -194,7 +194,9 @@ public sealed class PostingEngine : IPostingEngine
         {
             EntryDate = request.EntryDate,
             Description = BuildDescription(rule, request),
-            Lines = lines
+            Lines = lines,
+            SourceDocumentType = request.SourceDocumentType,
+            SourceDocumentId = request.SourceDocumentId
         };
 
         Result<JournalEntryDto> draft = await _journalEntries

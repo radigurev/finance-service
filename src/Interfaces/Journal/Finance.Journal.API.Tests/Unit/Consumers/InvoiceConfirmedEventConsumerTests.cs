@@ -30,6 +30,7 @@ public sealed class InvoiceConfirmedEventConsumerTests
 {
     private static readonly DateTimeOffset IssueDate = new(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
 
+    private Mock<IJournalEntryService> _journalEntries = null!;
     private Mock<IPostingEngine> _postingEngine = null!;
     private Mock<IPublishEndpoint> _publishEndpoint = null!;
     private List<object> _publishedEvents = null!;
@@ -39,6 +40,12 @@ public sealed class InvoiceConfirmedEventConsumerTests
     [SetUp]
     public void SetUp()
     {
+        _journalEntries = new Mock<IJournalEntryService>();
+        _journalEntries
+            .Setup(s => s.FindPostedBySourceDocumentAsync(
+                It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((JournalEntryDto?)null);
+
         _postingEngine = new Mock<IPostingEngine>();
         _publishEndpoint = new Mock<IPublishEndpoint>();
         _publishedEvents = [];
@@ -48,6 +55,7 @@ public sealed class InvoiceConfirmedEventConsumerTests
             .Returns(Task.CompletedTask);
 
         _consumer = new InvoiceConfirmedEventConsumer(
+            _journalEntries.Object,
             _postingEngine.Object,
             _publishEndpoint.Object,
             NullLogger<InvoiceConfirmedEventConsumer>.Instance);
@@ -153,6 +161,114 @@ public sealed class InvoiceConfirmedEventConsumerTests
             async () => await _consumer.Consume(ContextFor(@event)),
             Throws.TypeOf<InvalidOperationException>());
         Assert.That(_publishedEvents, Is.Empty);
+    }
+
+    /// <summary>
+    /// Every entry the shipped consumer creates is stamped with the ("Invoice", InvoiceId) source-document pair,
+    /// which reaches the entry through ApplyPostingRuleRequest → CreateJournalEntryRequest and is backstopped by
+    /// the unique filtered index (SDD-PAY-001 §2.5 hardening, SDD-INV-001 §2.5).
+    /// </summary>
+    [Test]
+    [Category("SDD-PAY-001")]
+    public async Task InvoiceConfirmedConsumer_StampsSourceDocumentTypeAndId_OnPostedJournalEntry()
+    {
+        // Arrange
+        Guid invoiceId = Guid.NewGuid();
+        InvoiceConfirmedEvent @event = BuildEvent(
+            invoiceId,
+            postingRuleKey: "SALE_INVOICE",
+            net: 100.00m,
+            tax: 20.00m,
+            gross: 120.00m,
+            currencyCode: "BGN");
+        ApplyPostingRuleRequest? captured = null;
+        _postingEngine
+            .Setup(e => e.ApplyAsync(It.IsAny<ApplyPostingRuleRequest>(), It.IsAny<CancellationToken>()))
+            .Callback<ApplyPostingRuleRequest, CancellationToken>((request, _) => captured = request)
+            .ReturnsAsync(Result<JournalEntryDto>.Success(BuildEntry(Guid.NewGuid(), "JE-2026-000051")));
+
+        // Act
+        await _consumer.Consume(ContextFor(@event));
+
+        // Assert
+        Assert.That(captured, Is.Not.Null);
+        Assert.Multiple(() =>
+        {
+            Assert.That(captured!.SourceDocumentType, Is.EqualTo(JournalSourceDocumentTypes.Invoice));
+            Assert.That(captured.SourceDocumentType, Is.EqualTo("Invoice"));
+            Assert.That(captured.SourceDocumentId, Is.EqualTo(invoiceId));
+        });
+    }
+
+    /// <summary>
+    /// A redelivery past the 7-day Redis dedupe window (or a DLQ replay) whose entry is already Posted for
+    /// ("Invoice", InvoiceId) posts NOTHING and succeeds, so the AR/AP control account can never be silently
+    /// overstated by the invoice gross (SDD-PAY-001 §2.5 hardening, SDD-INV-001 §2.5).
+    /// </summary>
+    [Test]
+    [Category("SDD-PAY-001")]
+    public async Task InvoiceConfirmedConsumer_RedeliveryPastDedupeWindow_DoesNotPostSecondEntry()
+    {
+        // Arrange
+        Guid invoiceId = Guid.NewGuid();
+        InvoiceConfirmedEvent @event = BuildEvent(
+            invoiceId,
+            postingRuleKey: "SALE_INVOICE",
+            net: 100.00m,
+            tax: 20.00m,
+            gross: 120.00m,
+            currencyCode: "BGN");
+        _journalEntries
+            .Setup(s => s.FindPostedBySourceDocumentAsync(
+                JournalSourceDocumentTypes.Invoice, invoiceId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(BuildEntry(Guid.NewGuid(), "JE-2026-000052"));
+
+        // Act
+        await _consumer.Consume(ContextFor(@event));
+
+        // Assert
+        _postingEngine.Verify(
+            e => e.ApplyAsync(It.IsAny<ApplyPostingRuleRequest>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// The recovery half of the invoice-side no-op: the already-posted entry's id and number are re-published on
+    /// a fresh InvoicePostedEvent carrying the source event's correlation id, so a lost back-event is recoverable
+    /// without a second entry (SDD-PAY-001 §2.5 hardening).
+    /// </summary>
+    [Test]
+    [Category("SDD-PAY-001")]
+    public async Task InvoiceConfirmedConsumer_PostedEntryExists_RepublishesInvoicePostedEvent_ForTheExistingEntry()
+    {
+        // Arrange
+        Guid invoiceId = Guid.NewGuid();
+        Guid existingEntryId = Guid.NewGuid();
+        InvoiceConfirmedEvent @event = BuildEvent(
+            invoiceId,
+            postingRuleKey: "SALE_INVOICE",
+            net: 100.00m,
+            tax: 20.00m,
+            gross: 120.00m,
+            currencyCode: "BGN");
+        _journalEntries
+            .Setup(s => s.FindPostedBySourceDocumentAsync(
+                JournalSourceDocumentTypes.Invoice, invoiceId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(BuildEntry(existingEntryId, "JE-2026-000053"));
+
+        // Act
+        await _consumer.Consume(ContextFor(@event));
+
+        // Assert
+        InvoicePostedEvent published = _publishedEvents.OfType<InvoicePostedEvent>().Single();
+        Assert.Multiple(() =>
+        {
+            Assert.That(published.InvoiceId, Is.EqualTo(invoiceId));
+            Assert.That(published.JournalEntryId, Is.EqualTo(existingEntryId));
+            Assert.That(published.JournalEntryNumber, Is.EqualTo("JE-2026-000053"));
+            Assert.That(published.CorrelationId, Is.EqualTo(@event.CorrelationId));
+            Assert.That(published.MessageId, Is.Not.EqualTo(@event.MessageId));
+        });
     }
 
     private static InvoiceConfirmedEvent BuildEvent(

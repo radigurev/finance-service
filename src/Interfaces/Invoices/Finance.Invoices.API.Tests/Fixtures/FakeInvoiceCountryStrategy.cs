@@ -77,6 +77,20 @@ public sealed class FakeInvoiceCountryStrategy : ICountryStrategy
         return $"{PrefixFor(documentType)}-2026-{sequenceValue:000000}";
     }
 
+    /// <inheritdoc />
+    public string GenerateDocumentNumber(PaymentDocumentType documentType, long sequenceValue)
+    {
+        GenerateDocumentNumberCallCount++;
+        return $"{PrefixFor(documentType)}-2026-{sequenceValue:000000}";
+    }
+
+    private static string PrefixFor(PaymentDocumentType documentType) => documentType switch
+    {
+        PaymentDocumentType.CustomerReceipt => "RCT",
+        PaymentDocumentType.SupplierPayment => "PAY",
+        _ => "PMT"
+    };
+
     private static string PrefixFor(InvoiceDocumentType documentType) => documentType switch
     {
         InvoiceDocumentType.PurchaseInvoice => "PINV",

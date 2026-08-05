@@ -9,7 +9,9 @@ namespace Finance.Invoices.API.Validators;
 /// <summary>
 /// FluentValidation shape rules for <see cref="CreateInvoiceRequest"/> (SDD-INV-001 §3.1): a valid document
 /// type, a present counterparty, an ISO-4217 currency, valid issue/due dates, at least one line for a manual
-/// create, and per-line shape. Cross-field totals reconciliation runs in the service (SDD-INV-001 §2.8).
+/// create, a positive booking rate when one is supplied (SDD-INV-001 §2.14 — a non-positive rate would corrupt
+/// the SDD-PAY-002 realized-FX difference), and per-line shape. Cross-field totals reconciliation runs in the
+/// service (SDD-INV-001 §2.8).
 /// </summary>
 public sealed class CreateInvoiceRequestValidator : AbstractValidator<CreateInvoiceRequest>
 {
@@ -42,6 +44,11 @@ public sealed class CreateInvoiceRequestValidator : AbstractValidator<CreateInvo
         RuleFor(request => request.Lines)
             .Must(lines => lines is { Count: >= 1 })
             .WithErrorCode(InvoiceErrorCodes.INVOICE_LINES_REQUIRED);
+
+        RuleFor(request => request.ExchangeRate)
+            .Must(rate => rate > 0m)
+            .When(request => request.ExchangeRate.HasValue)
+            .WithErrorCode(CommonErrorCodes.VALIDATION_FAILED);
 
         RuleForEach(request => request.Lines)
             .SetValidator(new InvoiceLineRequestValidator(countryStrategy));

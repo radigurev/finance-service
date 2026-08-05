@@ -14,4 +14,16 @@ public sealed record CreateJournalEntryRequest
 
     /// <summary>The lines composing the entry (minimum two, balanced in base currency).</summary>
     public required IReadOnlyList<JournalEntryLineRequest> Lines { get; init; }
+
+    /// <summary>
+    /// Optional type of the source document the entry is posted for (<c>Payment</c>/<c>Invoice</c>), stamped on
+    /// the entry as the duplicate-post backstop (SDD-PAY-001 §2.5). <c>null</c> for a manual entry.
+    /// </summary>
+    public string? SourceDocumentType { get; init; }
+
+    /// <summary>
+    /// Optional identifier of the source document the entry is posted for (SDD-PAY-001 §2.5). <c>null</c> for
+    /// a manual entry.
+    /// </summary>
+    public Guid? SourceDocumentId { get; init; }
 }

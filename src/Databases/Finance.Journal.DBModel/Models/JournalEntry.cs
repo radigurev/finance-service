@@ -39,6 +39,20 @@ public sealed class JournalEntry
     /// <summary>On a reversal entry, the identifier of the original entry it reverses; otherwise <c>null</c>.</summary>
     public Guid? ReversesEntryId { get; set; }
 
+    /// <summary>
+    /// The type of the source document this entry was posted for (<c>Payment</c>/<c>Invoice</c>), or
+    /// <c>null</c> for a manually created or reversing entry (SDD-PAY-001 §2.5). Together with
+    /// <see cref="SourceDocumentId"/> it is the duplicate-post backstop: at most one <c>Posted</c> entry may
+    /// exist per source document.
+    /// </summary>
+    public string? SourceDocumentType { get; set; }
+
+    /// <summary>
+    /// The identifier of the source document this entry was posted for, or <c>null</c> for a manually created
+    /// or reversing entry (SDD-PAY-001 §2.5).
+    /// </summary>
+    public Guid? SourceDocumentId { get; set; }
+
     /// <summary>The ambient correlation identifier captured at creation.</summary>
     public required string CorrelationId { get; set; }
 

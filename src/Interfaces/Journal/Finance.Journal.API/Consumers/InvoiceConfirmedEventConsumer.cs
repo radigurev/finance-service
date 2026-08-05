@@ -18,6 +18,10 @@ namespace Finance.Journal.API.Consumers;
 /// success publishes the dedicated back-event <see cref="InvoicePostedEvent"/> through the Journal
 /// transactional outbox so the Invoice service can link the journal entry and move to <c>Posted</c>. A
 /// posting failure propagates so MassTransit retries / dead-letters.
+/// <para>Aggregate-level duplicate-post guard (SDD-PAY-001 §2.5, SDD-INV-001 amendment): every entry it
+/// creates is stamped with the <c>("Invoice", InvoiceId)</c> source-document pair, and a redelivery whose
+/// entry is already <c>Posted</c> posts NOTHING and merely re-publishes <see cref="InvoicePostedEvent"/> for
+/// the existing entry, so a lost back-event is recoverable without a second entry.</para>
 /// </summary>
 public sealed class InvoiceConfirmedEventConsumer : IConsumer<InvoiceConfirmedEvent>
 {
@@ -26,30 +30,36 @@ public sealed class InvoiceConfirmedEventConsumer : IConsumer<InvoiceConfirmedEv
     private const string CreditNoteRuleKey = "CREDIT_NOTE";
     private const string DebitNoteRuleKey = "DEBIT_NOTE";
 
+    private readonly IJournalEntryService _journalEntries;
     private readonly IPostingEngine _postingEngine;
     private readonly IPublishEndpoint _publishEndpoint;
     private readonly ILogger<InvoiceConfirmedEventConsumer> _logger;
 
     /// <summary>Creates a new <see cref="InvoiceConfirmedEventConsumer"/>.</summary>
+    /// <param name="journalEntries">The journal-entry service supplying the source-document dedupe lookup.</param>
     /// <param name="postingEngine">The posting engine that materializes and posts the journal entry.</param>
     /// <param name="publishEndpoint">The transactional-outbox publish endpoint for the back-event.</param>
     /// <param name="logger">The consumer logger.</param>
     public InvoiceConfirmedEventConsumer(
+        IJournalEntryService journalEntries,
         IPostingEngine postingEngine,
         IPublishEndpoint publishEndpoint,
         ILogger<InvoiceConfirmedEventConsumer> logger)
     {
+        ArgumentNullException.ThrowIfNull(journalEntries);
         ArgumentNullException.ThrowIfNull(postingEngine);
         ArgumentNullException.ThrowIfNull(publishEndpoint);
         ArgumentNullException.ThrowIfNull(logger);
 
+        _journalEntries = journalEntries;
         _postingEngine = postingEngine;
         _publishEndpoint = publishEndpoint;
         _logger = logger;
     }
 
     /// <summary>
-    /// Posts the journal entry for the confirmed invoice and publishes the back-event on success.
+    /// Posts the journal entry for the confirmed invoice and publishes the back-event on success, or
+    /// re-publishes the back-event alone when the entry is already posted for the invoice.
     /// </summary>
     /// <param name="context">The consume context carrying the confirmed-invoice event.</param>
     /// <returns>A task that completes when the entry has been posted and the back-event enqueued.</returns>
@@ -58,6 +68,17 @@ public sealed class InvoiceConfirmedEventConsumer : IConsumer<InvoiceConfirmedEv
         ArgumentNullException.ThrowIfNull(context);
 
         InvoiceConfirmedEvent message = context.Message;
+
+        JournalEntryDto? alreadyPosted = await _journalEntries
+            .FindPostedBySourceDocumentAsync(
+                JournalSourceDocumentTypes.Invoice, message.InvoiceId, context.CancellationToken)
+            .ConfigureAwait(false);
+        if (alreadyPosted is not null)
+        {
+            await RepublishForExistingEntryAsync(message, alreadyPosted, context.CancellationToken)
+                .ConfigureAwait(false);
+            return;
+        }
 
         _logger.LogInformation(
             "Posting journal entry for confirmed invoice {InvoiceId} ({DocumentNumber}) via rule {PostingRuleKey}",
@@ -84,6 +105,21 @@ public sealed class InvoiceConfirmedEventConsumer : IConsumer<InvoiceConfirmedEv
             .ConfigureAwait(false);
     }
 
+    private async Task RepublishForExistingEntryAsync(
+        InvoiceConfirmedEvent message,
+        JournalEntryDto existing,
+        CancellationToken cancellationToken)
+    {
+        _logger.LogInformation(
+            "Journal entry {JournalEntryId} is already posted for invoice {InvoiceId}; re-publishing the back-event only",
+            existing.Id,
+            message.InvoiceId);
+
+        await _publishEndpoint
+            .Publish(BuildPostedEvent(message, existing), cancellationToken)
+            .ConfigureAwait(false);
+    }
+
     private static ApplyPostingRuleRequest BuildRequest(InvoiceConfirmedEvent message) => new()
     {
         RuleKey = ResolveRuleKey(message),
@@ -96,7 +132,9 @@ public sealed class InvoiceConfirmedEventConsumer : IConsumer<InvoiceConfirmedEv
         CurrencyCode = message.CurrencyCode,
         EntryDate = message.IssueDate,
         Description = $"Invoice {message.DocumentNumber}",
-        PostImmediately = true
+        PostImmediately = true,
+        SourceDocumentType = JournalSourceDocumentTypes.Invoice,
+        SourceDocumentId = message.InvoiceId
     };
 
     private static string ResolveRuleKey(InvoiceConfirmedEvent message)

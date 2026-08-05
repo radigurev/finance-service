@@ -8,9 +8,9 @@ namespace Finance.Invoices.API.ErrorMapping;
 /// Invoice-domain extension of <see cref="DefaultErrorCodeToStatusMap"/> (SDD-INV-001 §4). The default
 /// suffix/pattern rules do not classify the Invoice state-conflict codes (<c>INVOICE_NOT_DRAFT</c>,
 /// <c>INVOICE_NOT_CONFIRMED</c>, <c>INVOICE_POSTED_IMMUTABLE</c>, <c>INVALID_INVOICE_STATE_TRANSITION</c>,
-/// <c>INVOICE_PERIOD_CLOSED</c>, <c>INVOICE_DUPLICATE_DOCUMENT_NUMBER</c>) as 409, so this map adds them and
-/// delegates every other code to the default map (where <c>*_NOT_FOUND</c> → 404, <c>CONCURRENT_*</c> → 409,
-/// and the remaining validation codes → 400).
+/// <c>INVOICE_PERIOD_CLOSED</c>, <c>INVOICE_DUPLICATE_DOCUMENT_NUMBER</c>, <c>INVOICE_HAS_SETTLEMENTS</c>) as
+/// 409, so this map adds them and delegates every other code to the default map (where <c>*_NOT_FOUND</c> →
+/// 404, <c>CONCURRENT_*</c> → 409, and the remaining validation codes → 400).
 /// </summary>
 public sealed class InvoiceErrorCodeToStatusMap : IErrorCodeToStatusMap
 {
@@ -21,7 +21,8 @@ public sealed class InvoiceErrorCodeToStatusMap : IErrorCodeToStatusMap
         InvoiceErrorCodes.INVOICE_POSTED_IMMUTABLE,
         InvoiceErrorCodes.INVALID_INVOICE_STATE_TRANSITION,
         InvoiceErrorCodes.INVOICE_PERIOD_CLOSED,
-        InvoiceErrorCodes.INVOICE_DUPLICATE_DOCUMENT_NUMBER
+        InvoiceErrorCodes.INVOICE_DUPLICATE_DOCUMENT_NUMBER,
+        InvoiceErrorCodes.INVOICE_HAS_SETTLEMENTS
     };
 
     private readonly DefaultErrorCodeToStatusMap _default = new();

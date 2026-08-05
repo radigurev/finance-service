@@ -6,6 +6,7 @@
     <Project Path="Databases/Finance.Journal.DBModel/Finance.Journal.DBModel.csproj" />
     <Project Path="Databases/Finance.Invoices.DBModel/Finance.Invoices.DBModel.csproj" />
     <Project Path="Databases/Finance.Periods.DBModel/Finance.Periods.DBModel.csproj" />
+    <Project Path="Databases/Finance.Payments.DBModel/Finance.Payments.DBModel.csproj" />
   </Folder>
   <Folder Name="/Country/">
     <Project Path="Country/Finance.Country.Abstractions/Finance.Country.Abstractions.csproj" />
@@ -62,6 +63,10 @@
   <Folder Name="/Interfaces/Periods/">
     <Project Path="Interfaces/Periods/Finance.Periods.API/Finance.Periods.API.csproj" />
     <Project Path="Interfaces/Periods/Finance.Periods.API.Tests/Finance.Periods.API.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Interfaces/Payments/">
+    <Project Path="Interfaces/Payments/Finance.Payments.API/Finance.Payments.API.csproj" />
+    <Project Path="Interfaces/Payments/Finance.Payments.API.Tests/Finance.Payments.API.Tests.csproj" />
   </Folder>
   <Folder Name="/Tests/">
     <Project Path="Tests/Finance.IntegrationTesting/Finance.IntegrationTesting.csproj" />

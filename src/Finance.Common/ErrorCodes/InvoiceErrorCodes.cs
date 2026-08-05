@@ -64,4 +64,23 @@ public static class InvoiceErrorCodes
 
     /// <summary>A cancel was requested without a non-empty reason (SDD-INV-001 §2.6).</summary>
     public const string INVOICE_CANCEL_REASON_REQUIRED = nameof(INVOICE_CANCEL_REASON_REQUIRED);
+
+    /// <summary>
+    /// A cancel was attempted on a <c>Draft</c>/<c>Confirmed</c> invoice that already carries payment
+    /// allocations (<c>SettledAmount &gt; 0.00</c>) — the operator must deallocate in the Payments service
+    /// first (SDD-INV-001 §2.6/§2.14, SDD-PAY-002 §2.6).
+    /// <para><b>Best-effort guard, not a hard invariant.</b> It reads the asynchronously-fed settlement
+    /// mirror and the handshake is deliberately one-way with no synchronous cross-service read, so a cancel
+    /// racing an in-flight allocation can still succeed; SDD-PAY-002's cancellation consumer is the authority
+    /// that detects the resulting orphaned allocation.</para>
+    /// </summary>
+    public const string INVOICE_HAS_SETTLEMENTS = nameof(INVOICE_HAS_SETTLEMENTS);
+
+    /// <summary>
+    /// A settlement event carried an authoritative settled amount that would drive the invoice above its
+    /// gross total or below zero (SDD-INV-001 §2.14, §2.15 step 3). Defensive only — SDD-PAY-002 §2.5 forbids
+    /// over-allocation at the source — and never surfaced over HTTP: the consumer fails so MassTransit retries
+    /// and finally dead-letters rather than persisting a clamped ledger figure.
+    /// </summary>
+    public const string INVOICE_SETTLEMENT_EXCEEDS_GROSS_TOTAL = nameof(INVOICE_SETTLEMENT_EXCEEDS_GROSS_TOTAL);
 }

@@ -66,7 +66,17 @@ public sealed class BulgariaStrategy : ICountryStrategy
     /// <inheritdoc />
     public string GenerateDocumentNumber(InvoiceDocumentType documentType, long sequenceValue)
     {
-        string prefix = PrefixFor(documentType);
+        return Format(PrefixFor(documentType), sequenceValue);
+    }
+
+    /// <inheritdoc />
+    public string GenerateDocumentNumber(PaymentDocumentType documentType, long sequenceValue)
+    {
+        return Format(PrefixFor(documentType), sequenceValue);
+    }
+
+    private static string Format(string prefix, long sequenceValue)
+    {
         string year = DateTimeOffset.UtcNow.Year.ToString(CultureInfo.InvariantCulture);
         string padded = sequenceValue.ToString(CultureInfo.InvariantCulture).PadLeft(NumberPadding, '0');
         return string.Concat(prefix, "-", year, "-", padded);
@@ -81,11 +91,22 @@ public sealed class BulgariaStrategy : ICountryStrategy
         _ => throw new ArgumentOutOfRangeException(nameof(documentType), documentType, null)
     };
 
+    private static string PrefixFor(PaymentDocumentType documentType) => documentType switch
+    {
+        PaymentDocumentType.CustomerReceipt => "RCT",
+        PaymentDocumentType.SupplierPayment => "PAY",
+        _ => throw new ArgumentOutOfRangeException(nameof(documentType), documentType, null)
+    };
+
     private static IReadOnlyList<PostingRuleTemplate> BuildDefaultRules() =>
     [
         BuildSaleInvoiceRule(),
         BuildPurchaseInvoiceRule(),
-        BuildCustomerPaymentRule()
+        BuildCustomerPaymentRule(),
+        BuildCreditNoteRule(),
+        BuildDebitNoteRule(),
+        BuildPaymentCustomerReceiptRule(),
+        BuildPaymentSupplierPaymentRule()
     ];
 
     private static PostingRuleTemplate BuildSaleInvoiceRule() => new()
@@ -123,6 +144,56 @@ public sealed class BulgariaStrategy : ICountryStrategy
         [
             Line("503", PostingDebitOrCredit.Debit, PostingAmountSource.Gross),
             Line("411", PostingDebitOrCredit.Credit, PostingAmountSource.Gross)
+        ]
+    };
+
+    private static PostingRuleTemplate BuildCreditNoteRule() => new()
+    {
+        RuleKey = "CREDIT_NOTE",
+        Description = "Credit note: credit customers (gross), debit sales revenue (net) and output VAT (tax).",
+        CountryCode = Bg,
+        Lines =
+        [
+            Line("411", PostingDebitOrCredit.Credit, PostingAmountSource.Gross),
+            Line("701", PostingDebitOrCredit.Debit, PostingAmountSource.Net),
+            Line("4532", PostingDebitOrCredit.Debit, PostingAmountSource.Tax)
+        ]
+    };
+
+    private static PostingRuleTemplate BuildDebitNoteRule() => new()
+    {
+        RuleKey = "DEBIT_NOTE",
+        Description = "Debit note: debit customers (gross), credit sales revenue (net) and output VAT (tax).",
+        CountryCode = Bg,
+        Lines =
+        [
+            Line("411", PostingDebitOrCredit.Debit, PostingAmountSource.Gross),
+            Line("701", PostingDebitOrCredit.Credit, PostingAmountSource.Net),
+            Line("4532", PostingDebitOrCredit.Credit, PostingAmountSource.Tax)
+        ]
+    };
+
+    private static PostingRuleTemplate BuildPaymentCustomerReceiptRule() => new()
+    {
+        RuleKey = "PAYMENT_CUSTOMER_RECEIPT",
+        Description = "Customer receipt: debit bank/cash (gross), credit customers (gross).",
+        CountryCode = Bg,
+        Lines =
+        [
+            Line("503", PostingDebitOrCredit.Debit, PostingAmountSource.Gross),
+            Line("411", PostingDebitOrCredit.Credit, PostingAmountSource.Gross)
+        ]
+    };
+
+    private static PostingRuleTemplate BuildPaymentSupplierPaymentRule() => new()
+    {
+        RuleKey = "PAYMENT_SUPPLIER_PAYMENT",
+        Description = "Supplier payment: debit suppliers (gross), credit bank/cash (gross).",
+        CountryCode = Bg,
+        Lines =
+        [
+            Line("401", PostingDebitOrCredit.Debit, PostingAmountSource.Gross),
+            Line("503", PostingDebitOrCredit.Credit, PostingAmountSource.Gross)
         ]
     };
 

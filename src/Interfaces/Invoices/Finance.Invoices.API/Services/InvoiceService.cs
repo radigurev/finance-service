@@ -35,6 +35,7 @@ public sealed class InvoiceService
     : SearchableServiceBase<Invoice, InvoiceDto, InvoicesDbContext>, IInvoiceService
 {
     private const string IssueDateSortField = nameof(Invoice.IssueDate);
+    private const decimal BaseCurrencyBookingRate = 1.000000m;
 
     private readonly IWorkflowEngine<Invoice> _workflow;
     private readonly ISequenceGenerator _sequence;
@@ -304,6 +305,29 @@ public sealed class InvoiceService
     }
 
     /// <inheritdoc />
+    public async Task<Result<InvoiceDto>> MarkReversedAsync(
+        InvoiceReversalRequest request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        Result validated = ValidateReversal(request);
+        if (!validated.IsSuccess)
+        {
+            return Result<InvoiceDto>.Failure(validated.ErrorCode!, validated.Detail);
+        }
+
+        Invoice? invoice = await LoadWithLinesAsync(request.InvoiceId, tracking: true, cancellationToken)
+            .ConfigureAwait(false);
+        if (invoice is null)
+        {
+            return Result<InvoiceDto>.Failure(InvoiceErrorCodes.INVOICE_NOT_FOUND);
+        }
+
+        return await ReverseInTransactionAsync(invoice, request, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
     public async Task<Result> LinkPostedJournalEntryAsync(
         Guid invoiceId,
         Guid journalEntryId,
@@ -361,6 +385,7 @@ public sealed class InvoiceService
             CounterpartyId = request.CounterpartyId,
             CurrencyCode = request.CurrencyCode,
             BaseCurrencyCode = _country.BaseCurrencyCode,
+            ExchangeRate = ResolveBookingRate(request.CurrencyCode, _country.BaseCurrencyCode, request.ExchangeRate),
             IssueDate = request.IssueDate,
             DueDate = request.DueDate,
             CorrectsInvoiceId = request.CorrectsInvoiceId,
@@ -373,6 +398,30 @@ public sealed class InvoiceService
         };
 
         return invoice;
+    }
+
+    /// <summary>
+    /// Resolves the booking rate FROZEN on the document at creation (SDD-INV-001 §2.14): <c>1.000000</c>
+    /// whenever the transactional currency equals the base currency, otherwise the caller-supplied rate
+    /// (automatic resolution from a rate table is deferred to SDD-FIN-005). It is the only source of
+    /// <c>InvoiceConfirmedEvent.BookingExchangeRate</c>, so it is never fabricated for a non-base-currency
+    /// document.
+    /// </summary>
+    /// <param name="currencyCode">The invoice transactional currency.</param>
+    /// <param name="baseCurrencyCode">The base currency resolved from the country strategy.</param>
+    /// <param name="requestedRate">The caller-supplied rate, or <c>null</c> when omitted.</param>
+    /// <returns>The rate to freeze on the invoice.</returns>
+    private static decimal ResolveBookingRate(
+        string currencyCode,
+        string baseCurrencyCode,
+        decimal? requestedRate)
+    {
+        if (string.Equals(currencyCode, baseCurrencyCode, StringComparison.OrdinalIgnoreCase))
+        {
+            return BaseCurrencyBookingRate;
+        }
+
+        return requestedRate is decimal rate && rate > 0m ? rate : BaseCurrencyBookingRate;
     }
 
     private string ResolveCorrelationId(string? requestedCorrelationId)
@@ -623,6 +672,78 @@ public sealed class InvoiceService
         return Result<InvoiceDto>.Success(Mapper.Map<InvoiceDto>(invoice));
     }
 
+    /// <summary>
+    /// Shape-validates the reversal input (SDD-INV-001 §2.7): the correcting note must be identified and the
+    /// reason must be non-empty, because both are recorded on the audit row and carried on the published event.
+    /// The state legality of <c>Posted → Reversed</c> is left to the workflow engine, which surfaces
+    /// <c>INVALID_INVOICE_STATE_TRANSITION</c>.
+    /// </summary>
+    /// <param name="request">The reversal input.</param>
+    /// <returns>A success result, or a validation failure.</returns>
+    private static Result ValidateReversal(InvoiceReversalRequest request)
+    {
+        if (request.CorrectingInvoiceId == Guid.Empty)
+        {
+            return Result.Failure(
+                CommonErrorCodes.VALIDATION_FAILED,
+                "A reversal must identify the correcting credit/debit note.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Reason))
+        {
+            return Result.Failure(
+                CommonErrorCodes.VALIDATION_FAILED,
+                "A reversal must carry a non-empty reason.");
+        }
+
+        return Result.Success();
+    }
+
+    private async Task<Result<InvoiceDto>> ReverseInTransactionAsync(
+        Invoice invoice,
+        InvoiceReversalRequest request,
+        CancellationToken cancellationToken)
+    {
+        await using IDbContextTransaction transaction =
+            await Db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+
+        InvoiceStatus fromStatus = invoice.Status;
+        string beforeJson = SerializeInvoice(invoice);
+
+        Result transition = await TransitionAsync(
+            invoice, InvoiceStatus.Reversed, request.Reason, cancellationToken).ConfigureAwait(false);
+        if (!transition.IsSuccess)
+        {
+            return Result<InvoiceDto>.Failure(transition.ErrorCode!, transition.Detail);
+        }
+
+        AppendStatusHistory(invoice, fromStatus, InvoiceStatus.Reversed, request.Reason);
+
+        Result audited = await RecordAuditAsync(
+            InvoiceAuditEventTypes.InvoiceReversed,
+            AuditOperation.StateChange,
+            invoice,
+            beforeJson,
+            SerializeReversal(invoice, request),
+            request.Reason,
+            cancellationToken).ConfigureAwait(false);
+        if (!audited.IsSuccess)
+        {
+            return Result<InvoiceDto>.Failure(audited.ErrorCode!, audited.Detail);
+        }
+
+        await _publishEndpoint.Publish(BuildReversedEvent(invoice, request), cancellationToken)
+            .ConfigureAwait(false);
+
+        Result committed = await CommitAsync(transaction, cancellationToken).ConfigureAwait(false);
+        if (!committed.IsSuccess)
+        {
+            return Result<InvoiceDto>.Failure(committed.ErrorCode!, committed.Detail);
+        }
+
+        return Result<InvoiceDto>.Success(Mapper.Map<InvoiceDto>(invoice));
+    }
+
     private async Task<Result> TransitionToPostedAsync(Invoice invoice, CancellationToken cancellationToken)
     {
         await using IDbContextTransaction transaction =
@@ -783,7 +904,28 @@ public sealed class InvoiceService
         PostingRuleKey = InvoiceDocumentTypeMap.PostingRuleKeyFor(invoice.DocumentType),
         NetTotal = invoice.NetTotal,
         TaxTotal = invoice.TaxTotal,
-        GrossTotal = invoice.GrossTotal
+        GrossTotal = invoice.GrossTotal,
+        DueDate = invoice.DueDate,
+        BookingExchangeRate = invoice.ExchangeRate
+    };
+
+    /// <summary>
+    /// Builds the reversal event published from the <c>Posted → Reversed</c> transition (SDD-INV-001
+    /// §2.7/§2.11). <c>DocumentNumber</c> is dereferenced unconditionally because <c>Reversed</c> is reachable
+    /// only from <c>Posted</c> and every posted invoice was numbered at confirm.
+    /// </summary>
+    /// <param name="invoice">The reversed original invoice.</param>
+    /// <param name="request">The reversal input carrying the correcting note and the reason.</param>
+    /// <returns>The event to enqueue to the transactional outbox.</returns>
+    private InvoiceReversedEvent BuildReversedEvent(Invoice invoice, InvoiceReversalRequest request) => new()
+    {
+        MessageId = Guid.NewGuid(),
+        CorrelationId = Correlation.Get(),
+        OccurredAt = DateTimeOffset.UtcNow,
+        InvoiceId = invoice.Id,
+        DocumentNumber = invoice.DocumentNumber!,
+        CorrectingInvoiceId = request.CorrectingInvoiceId,
+        Reason = request.Reason
     };
 
     private InvoiceCancelledEvent BuildCancelledEvent(Invoice invoice, string reason) => new()
@@ -845,7 +987,19 @@ public sealed class InvoiceService
 
     private static string SerializeInvoice(Invoice invoice)
     {
-        return JsonSerializer.Serialize(new
+        return JsonSerializer.Serialize(BuildSnapshot(invoice));
+    }
+
+    /// <summary>
+    /// Builds the audit snapshot projection of the invoice, including the frozen booking rate and the settlement
+    /// figures the document carries at that moment (SDD-INV-001 §2.14 — a terminal transition carries them
+    /// forward and rewrites no history).
+    /// </summary>
+    /// <param name="invoice">The invoice to project.</param>
+    /// <returns>The snapshot projection serialized by the audit writers.</returns>
+    private static object BuildSnapshot(Invoice invoice)
+    {
+        return new
         {
             invoice.Id,
             invoice.DocumentNumber,
@@ -855,11 +1009,14 @@ public sealed class InvoiceService
             invoice.CounterpartyId,
             invoice.CurrencyCode,
             invoice.BaseCurrencyCode,
+            invoice.ExchangeRate,
             invoice.IssueDate,
             invoice.DueDate,
             invoice.NetTotal,
             invoice.TaxTotal,
             invoice.GrossTotal,
+            invoice.SettledAmount,
+            SettlementStatus = invoice.SettlementStatus.ToString(),
             invoice.CorrectsInvoiceId,
             invoice.JournalEntryId,
             invoice.SourceDocumentId,
@@ -876,6 +1033,24 @@ public sealed class InvoiceService
                 line.LineTax,
                 line.LineGross
             })
+        };
+    }
+
+    /// <summary>
+    /// Serializes the post-reversal audit snapshot: the invoice as reversed, plus the linking note and reason
+    /// that justified it (SDD-INV-001 §2.7). The original's own <c>CorrectsInvoiceId</c> is untouched — the link
+    /// belongs to the note — so the note id is recorded here rather than on the row.
+    /// </summary>
+    /// <param name="invoice">The reversed original invoice.</param>
+    /// <param name="request">The reversal input.</param>
+    /// <returns>The audit snapshot as JSON.</returns>
+    private static string SerializeReversal(Invoice invoice, InvoiceReversalRequest request)
+    {
+        return JsonSerializer.Serialize(new
+        {
+            Invoice = BuildSnapshot(invoice),
+            request.CorrectingInvoiceId,
+            request.Reason
         });
     }
 

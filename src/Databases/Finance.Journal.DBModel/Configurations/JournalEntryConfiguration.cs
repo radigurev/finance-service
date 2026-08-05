@@ -8,6 +8,9 @@ namespace Finance.Journal.DBModel.Configurations;
 /// EF Core Fluent-API configuration for the <see cref="JournalEntry"/> aggregate root (SDD-FIN-001 §2.1).
 /// Maps to <c>journal.JournalEntries</c> with a sequential-GUID PK, a <c>rowversion</c> concurrency token,
 /// the enum-as-string status column, and the composed line / status-history collections.
+/// <para>Also carries the SDD-PAY-001 §2.5 duplicate-post backstop: the nullable source-document pair and the
+/// UNIQUE FILTERED index <c>IX_JournalEntries_SourceDocument</c> admitting at most one <c>Posted</c> entry per
+/// source document.</para>
 /// </summary>
 public sealed class JournalEntryConfiguration : IEntityTypeConfiguration<JournalEntry>
 {
@@ -35,6 +38,8 @@ public sealed class JournalEntryConfiguration : IEntityTypeConfiguration<Journal
             .HasMaxLength(20);
 
         builder.Property(entry => entry.ReversesEntryId);
+        builder.Property(entry => entry.SourceDocumentType).HasMaxLength(40);
+        builder.Property(entry => entry.SourceDocumentId);
         builder.Property(entry => entry.CorrelationId).IsRequired().HasMaxLength(100);
         builder.Property(entry => entry.CreatedAt).IsRequired().HasDefaultValueSql("SYSDATETIMEOFFSET()");
         builder.Property(entry => entry.CreatedBy).IsRequired();
@@ -49,6 +54,12 @@ public sealed class JournalEntryConfiguration : IEntityTypeConfiguration<Journal
         builder.HasIndex(entry => entry.Status).HasDatabaseName("IX_JournalEntries_Status");
         builder.HasIndex(entry => entry.EntryDate).HasDatabaseName("IX_JournalEntries_EntryDate");
         builder.HasIndex(entry => entry.ReversesEntryId).HasDatabaseName("IX_JournalEntries_ReversesEntryId");
+
+        builder.HasIndex(entry => new { entry.SourceDocumentType, entry.SourceDocumentId })
+            .IsUnique()
+            .HasFilter(
+                "[SourceDocumentType] IS NOT NULL AND [SourceDocumentId] IS NOT NULL AND [Status] = 'Posted'")
+            .HasDatabaseName("IX_JournalEntries_SourceDocument");
 
         builder.HasMany(entry => entry.Lines)
             .WithOne(line => line.JournalEntry)

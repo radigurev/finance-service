@@ -162,7 +162,12 @@ public sealed class InvoicesController : BaseApiController
         return ToActionResult(result);
     }
 
-    /// <summary>Cancels (voids) a draft or confirmed invoice (SDD-INV-001 §2.6).</summary>
+    /// <summary>
+    /// Cancels (voids) a draft or confirmed invoice (SDD-INV-001 §2.6). An invoice that already carries payment
+    /// allocations is rejected with <c>INVOICE_HAS_SETTLEMENTS</c> (409) — a best-effort guard over the
+    /// eventually-consistent settlement mirror; the operator releases the allocation in the Payments service
+    /// first (SDD-INV-001 §2.6/§2.14).
+    /// </summary>
     /// <param name="id">The invoice identifier.</param>
     /// <param name="request">The cancel request carrying the mandatory reason and row version.</param>
     /// <param name="cancellationToken">A token to observe for cancellation.</param>

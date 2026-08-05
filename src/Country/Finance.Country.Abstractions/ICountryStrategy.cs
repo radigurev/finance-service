@@ -75,4 +75,20 @@ public interface ICountryStrategy
     /// <param name="sequenceValue">The freshly allocated gapless sequence value (1-based).</param>
     /// <returns>The country-formatted document number (e.g. <c>ФПр-2026-000001</c>).</returns>
     string GenerateDocumentNumber(InvoiceDocumentType documentType, long sequenceValue);
+
+    /// <summary>
+    /// Formats a gapless sequence value into the country's document number for the supplied cash
+    /// <paramref name="documentType"/> (SDD-CTRY-001 §5, SDD-PAY-001 §2.4, §5). Pure, deterministic, and
+    /// side-effect-free — it performs no I/O and never allocates a sequence value itself (the caller
+    /// allocates it via <c>ISequenceGenerator</c>). The prefix is per document type (customer receipt /
+    /// supplier payment).
+    /// <para>The overload deliberately takes NO date: the year segment comes from the ambient clock, exactly
+    /// as the invoice-typed member above does and exactly as <c>SequenceGenerator</c> composes its yearly
+    /// reset key — so the number's year and the counter series always agree. The caller pins
+    /// <c>PaymentDate.Year</c> to the confirm-clock year with its own guard (SDD-PAY-001 §2.2).</para>
+    /// </summary>
+    /// <param name="documentType">The payment document type whose number is being formatted.</param>
+    /// <param name="sequenceValue">The freshly allocated gapless sequence value (1-based).</param>
+    /// <returns>The country-formatted document number (e.g. <c>RCT-2026-000001</c>).</returns>
+    string GenerateDocumentNumber(PaymentDocumentType documentType, long sequenceValue);
 }

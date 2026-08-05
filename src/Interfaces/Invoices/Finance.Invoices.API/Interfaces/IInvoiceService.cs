@@ -100,6 +100,24 @@ public interface IInvoiceService
         CancellationToken cancellationToken);
 
     /// <summary>
+    /// Records that a fully-offsetting credit/debit note has corrected a posted invoice, transitioning it
+    /// <c>Posted → Reversed</c> (SDD-INV-001 §2.7). Within one transaction it flips the state flag, appends the
+    /// status-history row, writes an audit <c>StateChange</c> carrying the linking note id and the reason, and
+    /// enqueues <c>InvoiceReversedEvent</c> to the transactional outbox — audit-first, then outbox — so the
+    /// SDD-PAY-002 sub-ledger can never keep mirroring a voided document as <c>Posted</c> and matching real cash
+    /// against it. The original's header, lines, totals, and document number are NEVER mutated, and the
+    /// settlement columns are NOT written by this path (SDD-INV-001 §2.14).
+    /// <para>The automatic full-offset DETECTION that triggers this transition is deferred (SDD-INV-001 §5), so
+    /// v1 exposes no reversal endpoint: this is the transition path the detection will call.</para>
+    /// </summary>
+    /// <param name="request">The reversal input: the original, the correcting note, and the reason.</param>
+    /// <param name="cancellationToken">A token to observe for cancellation.</param>
+    /// <returns>The reversed <see cref="InvoiceDto"/>, or a not-found / validation / state failure.</returns>
+    Task<Result<InvoiceDto>> MarkReversedAsync(
+        InvoiceReversalRequest request,
+        CancellationToken cancellationToken);
+
+    /// <summary>
     /// Links the posted journal entry and transitions the invoice <c>Confirmed → Posted</c> in response to
     /// the Journal back-event (SDD-INV-001 §2.5). A replay against an already-<c>Posted</c> invoice is a
     /// no-op. Invoked by the back-event consumer, not by the controller.

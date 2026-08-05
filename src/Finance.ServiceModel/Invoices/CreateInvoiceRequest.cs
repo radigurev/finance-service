@@ -27,6 +27,15 @@ public sealed record CreateInvoiceRequest
     /// <summary>The lines composing the invoice (a manual create requires at least one).</summary>
     public required IReadOnlyList<InvoiceLineRequest> Lines { get; init; }
 
+    /// <summary>
+    /// The booking rate at which the invoice's <see cref="CurrencyCode"/> amounts are booked into the
+    /// server-resolved base currency (SDD-INV-001 §2.14). The service FREEZES it on the document at creation:
+    /// <c>1.000000</c> whenever the transactional currency equals the base currency (the supplied value is then
+    /// irrelevant), otherwise this caller-supplied rate — automatic rate resolution is deferred to SDD-FIN-005.
+    /// When omitted the service freezes <c>1.000000</c>.
+    /// </summary>
+    public decimal? ExchangeRate { get; init; }
+
     /// <summary>On a credit/debit note, the original invoice it corrects; otherwise <c>null</c>.</summary>
     public Guid? CorrectsInvoiceId { get; init; }
 

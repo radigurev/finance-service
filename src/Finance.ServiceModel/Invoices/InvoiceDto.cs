@@ -47,6 +47,26 @@ public sealed record InvoiceDto
     /// <summary>The document gross total (<c>NetTotal + TaxTotal</c>).</summary>
     public required decimal GrossTotal { get; init; }
 
+    /// <summary>
+    /// How much of <see cref="GrossTotal"/> payment allocations have applied, in the invoice's own
+    /// <see cref="CurrencyCode"/> (SDD-INV-001 §2.14). Maintained asynchronously from SDD-PAY-002's allocation
+    /// events, so it is an eventually-consistent mirror; it is transactional data and is never cached.
+    /// </summary>
+    public required decimal SettledAmount { get; init; }
+
+    /// <summary>
+    /// The DERIVED settlement state (SDD-INV-001 §2.14; the shared enum owned by SDD-PAY-002 §2.8). It is
+    /// ORTHOGONAL to <see cref="Status"/>: a fully-settled invoice remains <c>Posted</c>, and
+    /// <c>Settled</c> is not a lifecycle state.
+    /// </summary>
+    public required SettlementStatus SettlementStatus { get; init; }
+
+    /// <summary>
+    /// The booking rate frozen at creation, at which the invoice's <see cref="CurrencyCode"/> amounts were
+    /// booked into <see cref="BaseCurrencyCode"/> (SDD-INV-001 §2.14). Exposed for FX display only.
+    /// </summary>
+    public required decimal ExchangeRate { get; init; }
+
     /// <summary>On a credit/debit note, the original invoice it corrects; otherwise <c>null</c>.</summary>
     public Guid? CorrectsInvoiceId { get; init; }
 

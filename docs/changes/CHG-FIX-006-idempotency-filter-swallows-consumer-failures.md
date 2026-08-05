@@ -3,7 +3,7 @@
 > Created: 2026-08-05
 > Author: adversarial spec review (Payments batch — round 3, finding W1)
 > Status: Implemented
-> Related specs: SDD-INFRA-006 (Resilient Message Publisher — authoritative, §1/§2.3/§2.4/§2.5/§4/§6), SDD-INFRA-004 (Redis Distributed Cache — owns the `IConnectionMultiplexer` the filter claims keys on), SDD-INT-WH-001 (the four Warehouse inbound consumers), SDD-INV-001 (`InvoiceConfirmedEventConsumer` posting handshake + `InvoicePostedEventConsumer` back-event), SDD-EVTLOG-001 (the six EventLog consumers), SDD-AUDIT-001 (a lost `EventLog` row is a lost audit row), SDD-OBS-001 (the DLQ-depth alert never fires), SDD-PAY-001 / SDD-PAY-002 (Drafted — their retry-then-dead-letter recovery wording depends on this fix)
+> Related specs: SDD-INFRA-006 (Resilient Message Publisher — authoritative, §1/§2.3/§2.4/§2.5/§4/§6), SDD-INFRA-004 (Redis Distributed Cache — owns the `IConnectionMultiplexer` the filter claims keys on), SDD-INT-WH-001 (the four Warehouse inbound consumers), SDD-INV-001 (`InvoiceConfirmedEventConsumer` posting handshake + `InvoicePostedEventConsumer` back-event), SDD-EVTLOG-001 (the six EventLog consumers), SDD-AUDIT-001 (a lost `EventLog` row is a lost audit row), SDD-OBS-001 (the DLQ-depth alert never fires), SDD-PAY-001 / SDD-PAY-002 (their retry-then-dead-letter recovery wording depends on this fix)
 > Originating ticket: adversarial review of the SDD-PAY-001/-002/-003 batch — round-3 finding W1 (BLOCKER, in shipped infrastructure)
 
 ---
@@ -26,7 +26,7 @@ The fix ships in this batch: a failed consume now releases the claim and rethrow
 | 2 | `src/Infrastructure/Messaging/Finance.Infrastructure.Messaging/Filters/IdempotencyFilter.cs:67-69` | The claim is taken **before** the forward: `await database.StringSetAsync(key, "1", ProcessedTtl, When.NotExists)`. `ProcessedTtl = TimeSpan.FromDays(7)` (`:25`). The key is `$"finance:processed:{messageId}"` (`:65`). |
 | 3 | `…/Filters/IdempotencyFilter.cs:71-79` | The duplicate branch logs `MessagingErrorCodes.DUPLICATE_MESSAGE_SKIPPED` (`:77`) and `return`s — **it never calls `next`, and it never faults**. Pre-fix this branch could not distinguish a genuine replay from the filter's own abandoned claim. |
 | 4 | `…/Filters/IdempotencyFilter.cs:83` | The forward, pre-fix, was `await next.Send(context).ConfigureAwait(false);` **unguarded** — the region now occupied by the `try`/`catch` at `:81-89`. On a thrown consumer exception the claim stayed live for the full 7-day TTL. |
-| 5 | `…/Filters/IdempotencyFilter.cs:125-128` (`ResolveMessageId`) | Falls back to `NewId.NextGuid()` when the transport supplies no `MessageId`. That fallback would have masked the defect (each attempt claiming a fresh key) — but every Finance event carries a `required Guid MessageId` per `IFinanceEvent` (SDD-INFRA-006 §2.2, `:57-62`), so **in practice every Finance message hit the defect**. |
+| 5 | `…/Filters/IdempotencyFilter.cs:139-142` (`ResolveMessageId`, post-fix lines) | Falls back to `NewId.NextGuid()` when the transport supplies no `MessageId`. That fallback would have masked the defect (each attempt claiming a fresh key) — but every Finance event carries a `required Guid MessageId` per `IFinanceEvent` (SDD-INFRA-006 §2.2, `:57-62`), so **in practice every Finance message hit the defect**. |
 
 ### 2.2 The filter ordering that turns the stale claim into a silent ACK
 
@@ -88,7 +88,7 @@ Cross-cutting consequences:
 - **SDD-OBS-001** — the platform's only failure signal for a lost message was a `LogWarning` identical to a healthy replay skip. Message loss was **unobservable** in Loki and in Grafana.
 - **SDD-AUDIT-001** — the EventLog consumers are the audit sink; silently dropping their messages breaches the append-only audit guarantee at the *ingest* boundary, where the `audit`-schema UPDATE/DELETE DENY offers no protection.
 - **SDD-INFRA-006 §1's central promise** — *"in Finance an unpublished `JournalEntryPostedEvent` could mean a missing audit row in `EventLog`, which is unacceptable"* — the outbox made publishing reliable, and then the consume side threw the message away.
-- **SDD-PAY-001 / SDD-PAY-002 (Drafted)** — their retry-then-dead-letter recovery wording (PAY-001 §2.5/§2.18, PAY-002 §2.3/§2.14) and SDD-INV-001 §2.13/§2.15 are only true **because this fix ships**; each cites CHG-FIX-006 as its prerequisite (round-3 W1 part 5).
+- **SDD-PAY-001 / SDD-PAY-002** — their retry-then-dead-letter recovery wording (PAY-001 §2.5/§2.18, PAY-002 §2.3/§2.14) and SDD-INV-001 §2.13/§2.15 are only true **because this fix ships**; each cites CHG-FIX-006 as its prerequisite (round-3 W1 part 5).
 
 ## 5. Scope
 
@@ -119,7 +119,7 @@ Cross-cutting consequences:
 Implemented at `src/Infrastructure/Messaging/Finance.Infrastructure.Messaging/Filters/IdempotencyFilter.cs`:
 
 - `:81-89` — the `try { await next.Send(context)…; } catch { await ReleaseClaimAsync(…); throw; }` guard (rules 1, 2).
-- `:109-117` — `ReleaseClaimAsync`, performing `KeyDeleteAsync` and the distinct Warning (rules 1, 3).
+- `:109-131` — `ReleaseClaimAsync`, performing `KeyDeleteAsync` and the distinct Warning (`:127-130`), plus its own `catch (RedisException)` that logs at Error and returns so a release failure never displaces the consumer exception (rules 1, 3; residual risk in §9).
 - `:71-79` — the duplicate short-circuit, **unchanged** (rules 4, 6).
 - `:8-20` and `:44-57` — class-level and `Send` XML docs stating the release-on-failure contract and citing CHG-FIX-006.
 
@@ -145,8 +145,8 @@ Swapping evidence #6/#7 so idempotency became the OUTER filter would **not** hav
 
 - **A partial-success consumer can now be re-run.** Releasing the claim means a consumer that commits a side effect and *then* throws will be retried. This is the intended trade — a *lost* financial event is strictly worse than a *retried* one — but it makes clear that `MessageId` dedupe is a transport-level optimization only. Aggregate-level idempotency is the real guard, and is already shipped where it matters: the Warehouse consumers dedupe on the source document (pinned by `Consumer_DistinctMessageIdSameSourceDocument_DoesNotCreateSecondDraft` and `Consumer_TransientFailureThenRetry_CreatesExactlyOneDraft` in `WarehouseConsumerIdempotencyTests`). Round-3 finding **W3** extends the same source-document guard to `JournalEntry` for `InvoiceConfirmedEventConsumer` and the new Payments consumer — **that work is the necessary complement to this fix** and ships alongside it.
 - **DLQ depth will become non-zero for the first time.** Previously-invisible failures now surface as real dead-lettered messages and fire the §2.4 Grafana alert. Operators must expect a one-off rise in alerts after deploy — this is the defect becoming visible, not a regression.
-- **A Redis `KeyDeleteAsync` failure during release** propagates from inside the `catch`, replacing the original consumer exception. The message still faults (so retry/dead-letter still runs, and correctness is preserved), but the root-cause exception can be masked in that narrow window. Accepted: a Redis outage is independently alerted, and the alternative — swallowing it — reintroduces a stale claim.
-- **`ResolveMessageId`'s `NewId.NextGuid()` fallback** (`:125-128`) still means a transport-supplied-`MessageId`-less message gets no dedupe across attempts. Unchanged by this fix and harmless for Finance events (`required MessageId`, §2.2), but it remains a latent gap for any future non-`IFinanceEvent` contract.
+- **A Redis `KeyDeleteAsync` failure during release does NOT displace the original consumer exception.** `ReleaseClaimAsync` (`:109-131`) guards the `KeyDeleteAsync` with its own `catch (RedisException)`, logs at **Error** — naming the still-held `MessageId`, the message type, and the `{TtlDays}`-day window in which a redelivery will be skipped (`:117-122`) — and then `return`s. Control therefore reaches the bare `throw;` in `Send` (`:88`) and the **original** consumer exception propagates with its identity and stack intact, so rule 2 holds even while Redis is down and MassTransit's retry and dead-letter policy still governs the message. The **residual risk is the claim, not the exception**: if Redis is unreachable at the exact moment a consumer fails, `finance:processed:{MessageId}` survives the remainder of its 7-day TTL, so that one message can still be short-circuited as a duplicate of itself on redelivery and acknowledged unprocessed — the pre-fix failure mode, now narrowed to a Redis outage and, critically, **loudly logged instead of silent**. This is inherent to a Redis-backed dedupe: with the claim store unreachable there is no way to both release the claim and keep the dedupe honest. Accepted, with two gaps recorded rather than hidden: (a) the guard is scoped to `RedisException`, so a non-Redis failure inside the release (for example `ObjectDisposedException` on a torn-down multiplexer) would still surface in place of the consumer exception; (b) the Error log carries **no** `Code=` machine error code — `MessagingErrorCodes` (`src/Finance.Common/ErrorCodes/MessagingErrorCodes.cs:12-21`) defines only `RABBITMQ_UNREACHABLE`, `DUPLICATE_MESSAGE_SKIPPED`, `MESSAGE_DEAD_LETTERED` and `OUTBOX_GROWTH_ALERT` — so a Loki alert must match the message template, and **no `[Unit]` test pins this branch** (the fixture injects `NullLogger` and never faults `KeyDeleteAsync` — §10). Both (a) and (b) are owed follow-ups, to the tester and to SDD-OBS-001 respectively (§14).
+- **`ResolveMessageId`'s `NewId.NextGuid()` fallback** (`:139-142`) still means a transport-supplied-`MessageId`-less message gets no dedupe across attempts. Unchanged by this fix and harmless for Finance events (`required MessageId`, §2.2), but it remains a latent gap for any future non-`IFinanceEvent` contract.
 
 ## 10. Testing
 
@@ -171,7 +171,7 @@ Regression guard (pre-existing, unchanged and green — proving rule 6):
 
 | Spec / file | Change |
 |---|---|
-| `src/Infrastructure/Messaging/Finance.Infrastructure.Messaging/Filters/IdempotencyFilter.cs` | **Fixed.** `try`/`catch` around the forward (`:81-89`); new private `ReleaseClaimAsync` (`:109-117`); class and `Send` XML docs updated (`:8-20`, `:44-57`). |
+| `src/Infrastructure/Messaging/Finance.Infrastructure.Messaging/Filters/IdempotencyFilter.cs` | **Fixed.** `try`/`catch` around the forward (`:81-89`); new private `ReleaseClaimAsync` (`:109-131`); class and `Send` XML docs updated (`:8-20`, `:44-57`). |
 | `src/Infrastructure/Finance.Infrastructure.Stateful.Tests/Messaging/IdempotencyFilterTests.cs` | **Two `[Unit]` tests added** (`:99-127`, `:133-160`); fixture summary updated to state the release-on-failure contract. |
 | `docs/infrastructure/SDD-INFRA-006-…md` | **One-line record only** in the existing Status/change-log style, citing CHG-FIX-006. No MUST added, changed, or removed (§7). The illustrative §2.5 snippet (`:99-110`) is deliberately left as-is. |
 | `MessagingServiceCollectionExtensions.cs:122-123`, `EventLogMessagingExtensions.cs:91-92` | **Unchanged** — order deliberately preserved (§8). |

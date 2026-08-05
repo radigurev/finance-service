@@ -166,6 +166,11 @@ namespace Finance.Invoices.DBModel.Migrations
                     b.Property<DateTimeOffset>("DueDate")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<decimal>("ExchangeRate")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("decimal(18,6)")
+                        .HasDefaultValue(1.000000m);
+
                     b.Property<decimal>("GrossTotal")
                         .HasColumnType("decimal(18,2)");
 
@@ -174,6 +179,9 @@ namespace Finance.Invoices.DBModel.Migrations
 
                     b.Property<Guid?>("JournalEntryId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("LastSettlementAppliedAt")
+                        .HasColumnType("datetimeoffset");
 
                     b.Property<decimal>("NetTotal")
                         .HasColumnType("decimal(18,2)");
@@ -186,6 +194,16 @@ namespace Finance.Invoices.DBModel.Migrations
                         .IsRequired()
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("rowversion");
+
+                    b.Property<decimal>("SettledAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("decimal(18,2)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<string>("SettlementStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.Property<Guid?>("SourceDocumentId")
                         .HasColumnType("uniqueidentifier");
@@ -221,6 +239,9 @@ namespace Finance.Invoices.DBModel.Migrations
 
                     b.HasIndex("IssueDate")
                         .HasDatabaseName("IX_Invoices_IssueDate");
+
+                    b.HasIndex("SettlementStatus")
+                        .HasDatabaseName("IX_Invoices_SettlementStatus");
 
                     b.HasIndex("Status")
                         .HasDatabaseName("IX_Invoices_Status");

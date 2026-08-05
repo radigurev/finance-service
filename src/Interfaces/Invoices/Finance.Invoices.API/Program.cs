@@ -93,6 +93,11 @@ static void ConfigureServices(WebApplicationBuilder builder)
     services.AddScoped<InvoiceTotalsCalculator>();
     services.AddScoped<IInvoiceService, InvoiceService>();
 
+    // SDD-INV-001 §2.14/§2.15: the settlement mirror maintained from the SDD-PAY-002 allocation events, with
+    // the single settlement-status derivation this service owns.
+    services.AddScoped<InvoiceSettlementStatusCalculator>();
+    services.AddScoped<IInvoiceSettlementService, InvoiceSettlementService>();
+
     // SDD-INT-WH-001 §2.1-§2.3: the shared map-and-create helper the four Warehouse inbound consumers use.
     services.AddScoped<IWarehouseInvoiceDraftFactory, WarehouseInvoiceDraftFactory>();
 
@@ -118,6 +123,13 @@ static void ConfigureConsumers(IBusRegistrationConfigurator registration)
     registration.AddConsumer<ShipmentCompletedConsumer>();
     registration.AddConsumer<CustomerReturnCompletedConsumer>();
     registration.AddConsumer<SupplierReturnShippedConsumer>();
+
+    // SDD-INV-001 §2.15: the ORDERED, idempotent settlement mirror consumers of the SDD-PAY-002 allocation
+    // events. Each is wrapped by the shared idempotency filter (UseFinanceIdempotency, SDD-INFRA-006) and
+    // inherits the retry (1s/5s/15s) + <queue>_error dead-letter policy. The handshake is one-way: neither
+    // consumer publishes a back-event or calls the Payments service.
+    registration.AddConsumer<PaymentAllocatedEventConsumer>();
+    registration.AddConsumer<PaymentDeallocatedEventConsumer>();
 }
 
 static void ConfigureWorkflow(IServiceCollection services)
@@ -129,6 +141,10 @@ static void ConfigureWorkflow(IServiceCollection services)
     services.AddScoped<IWorkflowState<Invoice>, ReversedInvoiceState>();
 
     services.AddScoped<IChainValidator<WorkflowContext<Invoice>>, InvoicePeriodWorkflowGuard>();
+
+    // SDD-INV-001 §2.6/§2.14: the best-effort settlement guard blocking the cancellation of an invoice that
+    // already carries payment allocations. Stateful, so it is a transition guard rather than a validator rule.
+    services.AddScoped<IChainValidator<WorkflowContext<Invoice>>, InvoiceSettlementWorkflowGuard>();
 
     // SDD-INV-001 §2.2: the default always-open guard; SDD-FIN-004 supplies the real period-status lookup.
     services.AddScoped<IInvoicePeriodGuard, AlwaysOpenInvoicePeriodGuard>();

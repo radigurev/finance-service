@@ -95,6 +95,27 @@ public sealed class JournalEntryService
     }
 
     /// <inheritdoc />
+    public async Task<JournalEntryDto?> FindPostedBySourceDocumentAsync(
+        string sourceDocumentType,
+        Guid sourceDocumentId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sourceDocumentType);
+
+        JournalEntry? entry = await Db.JournalEntries
+            .AsNoTracking()
+            .Include(entry => entry.Lines)
+            .Where(entry =>
+                entry.SourceDocumentType == sourceDocumentType
+                && entry.SourceDocumentId == sourceDocumentId
+                && entry.Status == JournalEntryStatus.Posted)
+            .FirstOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return entry is null ? null : Mapper.Map<JournalEntryDto>(entry);
+    }
+
+    /// <inheritdoc />
     public async Task<Result<JournalEntryDto>> CreateDraftAsync(
         CreateJournalEntryRequest request,
         string baseCurrencyCode,
@@ -278,6 +299,8 @@ public sealed class JournalEntryService
             Description = request.Description,
             BaseCurrencyCode = baseCurrencyCode,
             Status = JournalEntryStatus.Draft,
+            SourceDocumentType = request.SourceDocumentType,
+            SourceDocumentId = request.SourceDocumentId,
             CorrelationId = correlationId,
             CreatedAt = now,
             CreatedBy = userId,

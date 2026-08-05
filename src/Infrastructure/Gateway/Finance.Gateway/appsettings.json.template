@@ -14,7 +14,8 @@
     "EventLogApi": "<EVENTLOG_API_URL>",
     "JournalApi": "<JOURNAL_API_URL>",
     "InvoicesApi": "<INVOICES_API_URL>",
-    "PeriodsApi": "<PERIODS_API_URL>"
+    "PeriodsApi": "<PERIODS_API_URL>",
+    "PaymentsApi": "<PAYMENTS_API_URL>"
   },
   "Kestrel": {
     "Endpoints": {
@@ -132,6 +133,30 @@
         "Match": {
           "Path": "/api/v1/periods/{**catch-all}"
         }
+      },
+      "payments-route": {
+        "ClusterId": "payments-cluster",
+        "Match": {
+          "Path": "/api/v1/payments/{**catch-all}"
+        }
+      },
+      "open-items-route": {
+        "ClusterId": "payments-cluster",
+        "Match": {
+          "Path": "/api/v1/open-items/{**catch-all}"
+        }
+      },
+      "aging-route": {
+        "ClusterId": "payments-cluster",
+        "Match": {
+          "Path": "/api/v1/aging/{**catch-all}"
+        }
+      },
+      "counterparty-balances-route": {
+        "ClusterId": "payments-cluster",
+        "Match": {
+          "Path": "/api/v1/counterparty-balances/{**catch-all}"
+        }
       }
     },
     "Clusters": {
@@ -181,6 +206,13 @@
         "Destinations": {
           "periods-api": {
             "Address": "<PERIODS_API_URL>"
+          }
+        }
+      },
+      "payments-cluster": {
+        "Destinations": {
+          "payments-api": {
+            "Address": "<PAYMENTS_API_URL>"
           }
         }
       }

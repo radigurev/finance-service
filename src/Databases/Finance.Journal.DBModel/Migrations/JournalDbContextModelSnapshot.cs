@@ -159,6 +159,13 @@ namespace Finance.Journal.DBModel.Migrations
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("rowversion");
 
+                    b.Property<Guid?>("SourceDocumentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("SourceDocumentType")
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -180,6 +187,11 @@ namespace Finance.Journal.DBModel.Migrations
 
                     b.HasIndex("Status")
                         .HasDatabaseName("IX_JournalEntries_Status");
+
+                    b.HasIndex("SourceDocumentType", "SourceDocumentId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_JournalEntries_SourceDocument")
+                        .HasFilter("[SourceDocumentType] IS NOT NULL AND [SourceDocumentId] IS NOT NULL AND [Status] = 'Posted'");
 
                     b.ToTable("JournalEntries", "journal");
                 });

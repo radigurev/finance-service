@@ -56,4 +56,28 @@ public sealed record InvoiceConfirmedEvent : IFinanceEvent
 
     /// <summary>The document gross total.</summary>
     public required decimal GrossTotal { get; init; }
+
+    /// <summary>
+    /// The invoice payment due date (SDD-INV-001 §2.11/§2.15), mirrored onto the SDD-PAY-002
+    /// <c>InvoiceOpenItem</c> projection so aging (SDD-PAY-003) can bucket the open item. POPULATED by the
+    /// SDD-INV-001 settlement amendment from <c>Invoice.DueDate</c> on every publish, so the SDD-PAY-002 §2.2
+    /// contingency fallback (<c>DueDate := IssueDate</c>) is no longer taken.
+    /// <para>The property stays NULLABLE deliberately: it is the wire contract's compatibility seam for a
+    /// message enqueued by an older publisher and still sitting in an outbox row or a dead-letter queue.
+    /// A publisher MUST NOT leave it unset.</para>
+    /// </summary>
+    public DateTimeOffset? DueDate { get; init; }
+
+    /// <summary>
+    /// The exchange rate the invoice FROZE at creation (SDD-INV-001 §2.14 <c>Invoice.ExchangeRate</c>),
+    /// mirrored onto the SDD-PAY-002 <c>InvoiceOpenItem.BookingExchangeRate</c> so the realized-FX difference
+    /// (SDD-PAY-002 §2.9) and SDD-PAY-003's base outstanding are computed from the rate the document actually
+    /// booked at. POPULATED by the SDD-INV-001 settlement amendment from that frozen column — never a
+    /// hard-coded <c>1.000000</c> — so the SDD-PAY-002 §2.2 contingency fallback, which misstated both figures
+    /// for every non-base-currency invoice, is no longer taken.
+    /// <para>The property stays NULLABLE deliberately: it is the wire contract's compatibility seam for a
+    /// message enqueued by an older publisher and still sitting in an outbox row or a dead-letter queue.
+    /// A publisher MUST NOT leave it unset.</para>
+    /// </summary>
+    public decimal? BookingExchangeRate { get; init; }
 }

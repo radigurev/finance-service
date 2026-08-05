@@ -43,6 +43,10 @@ public sealed class FakeCountryStrategy : ICountryStrategy
     public string GenerateDocumentNumber(InvoiceDocumentType documentType, long sequenceValue) =>
         $"{documentType}-{sequenceValue}";
 
+    /// <inheritdoc />
+    public string GenerateDocumentNumber(PaymentDocumentType documentType, long sequenceValue) =>
+        $"{documentType}-{sequenceValue}";
+
     /// <summary>Builds a structurally balanceable template (one debit, one credit) for the given key.</summary>
     /// <param name="ruleKey">The template's rule key.</param>
     /// <returns>A balanceable template.</returns>

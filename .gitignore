@@ -79,3 +79,6 @@ artifacts/
 **/*.tsbuildinfo
 # UI validation evidence (ephemeral)
 **/.ui-evidence/
+
+# Auto-generated per-developer launch profiles (random localhost ports; never tracked in this repo)
+**/Properties/launchSettings.json

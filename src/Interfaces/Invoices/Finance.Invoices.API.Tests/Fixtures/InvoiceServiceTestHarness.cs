@@ -20,7 +20,8 @@ namespace Finance.Invoices.API.Tests.Fixtures;
 
 /// <summary>
 /// Assembles an <see cref="InvoiceService"/> over a SQLite in-memory <see cref="InvoicesDbContext"/> with the
-/// real workflow engine (Draft/Confirmed/Posted/Cancelled/Reversed states + the period-open guard), the real
+/// real workflow engine (Draft/Confirmed/Posted/Cancelled/Reversed states + the period-open guard and the
+/// best-effort settlement cancel guard, matching the composition root), the real
 /// totals calculator, a fake <see cref="ICountryStrategy"/>, a fake period guard, and mocked sequence, audit,
 /// and publish dependencies (SDD-INV-001 §6.1-§6.5). The sequence generator yields deterministic gapless
 /// counter values per key so per-document-type numbering is observable; the publish endpoint captures
@@ -127,6 +128,10 @@ public sealed class InvoiceServiceTestHarness
             .Callback<InvoiceCancelledEvent, CancellationToken>((message, _) => publishedEvents.Add(message))
             .Returns(Task.CompletedTask);
         publishMock
+            .Setup(p => p.Publish(It.IsAny<InvoiceReversedEvent>(), It.IsAny<CancellationToken>()))
+            .Callback<InvoiceReversedEvent, CancellationToken>((message, _) => publishedEvents.Add(message))
+            .Returns(Task.CompletedTask);
+        publishMock
             .Setup(p => p.Publish(It.IsAny<object>(), It.IsAny<CancellationToken>()))
             .Callback<object, CancellationToken>((message, _) => publishedEvents.Add(message))
             .Returns(Task.CompletedTask);
@@ -171,7 +176,8 @@ public sealed class InvoiceServiceTestHarness
         WorkflowStateRegistry<Invoice> registry = new(states);
         List<IChainValidator<WorkflowContext<Invoice>>> guards =
         [
-            new InvoicePeriodWorkflowGuard(periodGuard)
+            new InvoicePeriodWorkflowGuard(periodGuard),
+            new InvoiceSettlementWorkflowGuard()
         ];
 
         return new WorkflowEngine<Invoice>(registry, guards);

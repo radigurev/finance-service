@@ -124,6 +124,15 @@ static void ConfigureConsumers(IBusRegistrationConfigurator registration)
     // SDD-INV-001 §2.5: consume InvoiceConfirmedEvent, post the JE via the Posting Engine, and publish
     // InvoicePostedEvent back through the Journal outbox. Wrapped by UseFinanceIdempotency() (SDD-INFRA-006).
     registration.AddConsumer<InvoiceConfirmedEventConsumer>();
+
+    // SDD-PAY-001 §2.5: consume PaymentConfirmedEvent, post the JE for the TRANSACTIONAL amount in the
+    // payment currency, and publish PaymentPostedEvent back through the Journal outbox. The
+    // ("Payment", PaymentId) source-document guard makes a redelivery or DLQ replay post nothing.
+    registration.AddConsumer<PaymentConfirmedEventConsumer>();
+
+    // SDD-PAY-001 §2.7: consume PaymentReversedEvent and correct the GL with a sign-flipped new entry through
+    // IJournalEntryService.ReverseAsync. An already-Reversed linked entry is a success no-op.
+    registration.AddConsumer<PaymentReversedEventConsumer>();
 }
 
 static void ConfigureWorkflow(IServiceCollection services)

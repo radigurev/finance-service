@@ -47,6 +47,18 @@ public sealed class Invoice
     /// <summary>The base currency the invoice books in (frozen at creation from the country strategy).</summary>
     public required string BaseCurrencyCode { get; set; }
 
+    /// <summary>
+    /// The invoice's BOOKING rate: the rate at which its <see cref="CurrencyCode"/> amounts were booked into
+    /// <see cref="BaseCurrencyCode"/> (SDD-INV-001 §2.14). Set at creation and then FROZEN for the life of the
+    /// document exactly as <see cref="BaseCurrencyCode"/> is — <c>1.000000</c> when the transactional currency
+    /// equals the base currency, otherwise the caller-supplied rate until SDD-FIN-005's automatic lookup lands.
+    /// <para>It is the ONLY source of <c>InvoiceConfirmedEvent.BookingExchangeRate</c>, which SDD-PAY-002
+    /// mirrors onto its open-item projection for the realized-FX difference and SDD-PAY-003's base outstanding.
+    /// Unlike the three settlement columns it is part of the ISSUED document, so the §2.9 immutability rule
+    /// covers it: it MUST NEVER be written after confirm.</para>
+    /// </summary>
+    public decimal ExchangeRate { get; set; } = 1.000000m;
+
     /// <summary>The issue date (drives period assignment and numbering).</summary>
     [Filterable]
     [Sortable]
@@ -65,6 +77,40 @@ public sealed class Invoice
 
     /// <summary>The document gross total (<c>NetTotal + TaxTotal</c>).</summary>
     public decimal GrossTotal { get; set; }
+
+    /// <summary>
+    /// How much of <see cref="GrossTotal"/> payment allocations have applied, in the invoice's own
+    /// <see cref="CurrencyCode"/> (SDD-INV-001 §2.14). Maintained ONLY by the ordered allocation-event
+    /// consumers (§2.15) by ABSOLUTE assignment of the authoritative value the event carries — never by a
+    /// delta, never by a caller, never through the workflow engine. It is an independent mirror of
+    /// SDD-PAY-002's own settled amount and MUST NOT be obtained by a synchronous read or a cross-database
+    /// join. Invariant (defensive): never negative, never above <see cref="GrossTotal"/>.
+    /// </summary>
+    [Filterable]
+    [Sortable]
+    public decimal SettledAmount { get; set; }
+
+    /// <summary>
+    /// The DERIVED settlement state, persisted as a string so it is filterable/sortable without
+    /// recomputation (SDD-INV-001 §2.14). It uses the SHARED enum owned by SDD-PAY-002 §2.8 — there is no
+    /// invoice-specific fork — and is ORTHOGONAL to <see cref="Status"/>: it never appears in any
+    /// <c>AllowedNextStates</c> set, never drives a lifecycle transition, and a fully-settled invoice remains
+    /// <c>Posted</c>. It is always recomputed from <see cref="SettledAmount"/> and <see cref="GrossTotal"/>
+    /// by the single derivation the service owns.
+    /// </summary>
+    [Filterable]
+    [Sortable]
+    public SettlementStatus SettlementStatus { get; set; } = SettlementStatus.Unsettled;
+
+    /// <summary>
+    /// The ORDERING TOKEN: the <c>OccurredAt</c> of the most recent allocation event this invoice has APPLIED
+    /// (SDD-INV-001 §2.14/§2.15). <c>null</c> means no settlement event has been applied yet, so the first
+    /// event always applies. A strictly older event is DROPPED, which is what makes the mirror
+    /// last-writer-by-<c>OccurredAt</c> rather than last-writer-by-arrival; without it the loser of a
+    /// <c>RowVersion</c> race would re-apply its older absolute value last and freeze the invoice at the wrong
+    /// figure permanently. It is internal consumer bookkeeping: never exposed as a filter/sort field.
+    /// </summary>
+    public DateTimeOffset? LastSettlementAppliedAt { get; set; }
 
     /// <summary>On a credit/debit note, the original invoice it corrects; otherwise <c>null</c>.</summary>
     public Guid? CorrectsInvoiceId { get; set; }

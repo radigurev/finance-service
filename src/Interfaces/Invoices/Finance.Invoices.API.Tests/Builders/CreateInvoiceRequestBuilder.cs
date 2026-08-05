@@ -14,6 +14,7 @@ public sealed class CreateInvoiceRequestBuilder
     private string _currencyCode = "BGN";
     private DateTimeOffset _issueDate = new(2026, 1, 15, 0, 0, 0, TimeSpan.Zero);
     private DateTimeOffset _dueDate = new(2026, 2, 15, 0, 0, 0, TimeSpan.Zero);
+    private decimal? _exchangeRate;
     private Guid? _correctsInvoiceId;
     private Guid? _sourceDocumentId;
     private string? _sourceDocumentType;
@@ -72,6 +73,18 @@ public sealed class CreateInvoiceRequestBuilder
         return this;
     }
 
+    /// <summary>
+    /// Sets the caller-supplied booking rate the service freezes on the document (SDD-INV-001 §2.14). Ignored by
+    /// the service when the transactional currency equals the base currency.
+    /// </summary>
+    /// <param name="exchangeRate">The booking rate, or <c>null</c> to omit it.</param>
+    /// <returns>This builder.</returns>
+    public CreateInvoiceRequestBuilder WithExchangeRate(decimal? exchangeRate)
+    {
+        _exchangeRate = exchangeRate;
+        return this;
+    }
+
     /// <summary>Sets the original-invoice linkage for a credit/debit note.</summary>
     /// <param name="correctsInvoiceId">The original invoice id.</param>
     /// <returns>This builder.</returns>
@@ -127,6 +140,7 @@ public sealed class CreateInvoiceRequestBuilder
         CurrencyCode = _currencyCode,
         IssueDate = _issueDate,
         DueDate = _dueDate,
+        ExchangeRate = _exchangeRate,
         Lines = _lines,
         CorrectsInvoiceId = _correctsInvoiceId,
         SourceDocumentId = _sourceDocumentId,

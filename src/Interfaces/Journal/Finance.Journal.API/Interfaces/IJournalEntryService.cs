@@ -30,6 +30,20 @@ public interface IJournalEntryService
     Task<Result<JournalEntryDto>> GetAsync(Guid id, CancellationToken cancellationToken);
 
     /// <summary>
+    /// Returns the <c>Posted</c> entry already booked for the given source document, or <c>null</c> when none
+    /// exists (SDD-PAY-001 §2.5). It is the aggregate-level duplicate-post guard the document consumers call
+    /// before posting, backed by the UNIQUE FILTERED index <c>IX_JournalEntries_SourceDocument</c>.
+    /// </summary>
+    /// <param name="sourceDocumentType">The source-document type tag (e.g. <c>Payment</c>, <c>Invoice</c>).</param>
+    /// <param name="sourceDocumentId">The source-document identifier.</param>
+    /// <param name="cancellationToken">A token to observe for cancellation.</param>
+    /// <returns>The matching posted <see cref="JournalEntryDto"/>, or <c>null</c> when nothing is posted yet.</returns>
+    Task<JournalEntryDto?> FindPostedBySourceDocumentAsync(
+        string sourceDocumentType,
+        Guid sourceDocumentId,
+        CancellationToken cancellationToken);
+
+    /// <summary>
     /// Creates a balanced draft entry from caller-supplied lines after the full SDD-FIN-001 validation
     /// surface passes, writing an audit <c>Create</c> row (SDD-FIN-002 §2.3).
     /// </summary>

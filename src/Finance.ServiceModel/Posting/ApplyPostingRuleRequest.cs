@@ -34,4 +34,16 @@ public sealed record ApplyPostingRuleRequest
 
     /// <summary>When <c>true</c> (the default) the resulting draft is posted immediately; otherwise it is left as a draft.</summary>
     public bool PostImmediately { get; init; } = true;
+
+    /// <summary>
+    /// Optional type of the source document the rule is applied for (<c>Payment</c>/<c>Invoice</c>), copied onto
+    /// the resulting entry as the duplicate-post backstop (SDD-PAY-001 §2.5). <c>null</c> for a manual apply.
+    /// </summary>
+    public string? SourceDocumentType { get; init; }
+
+    /// <summary>
+    /// Optional identifier of the source document the rule is applied for (SDD-PAY-001 §2.5). <c>null</c> for a
+    /// manual apply.
+    /// </summary>
+    public Guid? SourceDocumentId { get; init; }
 }
