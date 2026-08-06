@@ -29,8 +29,8 @@ _ReSharper*/
 ## Real config (only templates are tracked)
 **/appsettings.json
 **/appsettings.*.json
-!**/appsettings.template.json
-!**/appsettings.*.template.json
+!**/appsettings.json.template
+!**/appsettings.*.json.template
 **/secrets.json
 **/.env
 **/.env.*

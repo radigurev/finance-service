@@ -40,4 +40,27 @@ public static class SqlitePaymentsDbContextFactory
 
         return new SqlitePaymentsDbContextScope(connection, context, rowVersions, commands);
     }
+
+    /// <summary>
+    /// Builds a SECOND <see cref="PaymentsDbContext"/> over the SAME in-memory connection as
+    /// <paramref name="scope"/>, with its own change tracker and its own interceptor instances. It models the
+    /// second request of a race (SDD-PAY-001 §2.18 concurrent confirm): the sibling reads the row BEFORE the
+    /// first request commits, so its tracked snapshot — and the base64 <c>RowVersion</c> the caller round-trips —
+    /// are stale by the time it writes, which is exactly what the <c>rowversion</c> token exists to catch.
+    /// The caller owns the returned context and MUST dispose it.
+    /// </summary>
+    /// <param name="scope">The scope owning the kept-alive connection.</param>
+    /// <returns>A second context bound to the same in-memory database.</returns>
+    public static PaymentsDbContext CreateSiblingContext(SqlitePaymentsDbContextScope scope)
+    {
+        ArgumentNullException.ThrowIfNull(scope);
+
+        DbContextOptions<PaymentsDbContext> options = new DbContextOptionsBuilder<PaymentsDbContext>()
+            .UseSqlite(scope.Context.Database.GetDbConnection())
+            .AddInterceptors(new SqlitePaymentsRowVersionInterceptor(), new SqlitePaymentsCommandCounter())
+            .ReplaceService<IModelCustomizer, SqlitePaymentsModelCustomizer>()
+            .Options;
+
+        return new PaymentsDbContext(options);
+    }
 }

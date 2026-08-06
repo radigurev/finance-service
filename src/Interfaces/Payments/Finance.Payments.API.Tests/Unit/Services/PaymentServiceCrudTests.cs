@@ -247,6 +247,36 @@ public sealed class PaymentServiceCrudTests
         });
     }
 
+    [TestCase("not-base-64!")]
+    [TestCase("QUJD=====")]
+    public async Task Update_MalformedBase64RowVersion_ReturnsConcurrentModification(string rowVersion)
+    {
+        // Arrange
+        PaymentDto draft = await CreateDraftAsync();
+        _harness.Timeline.Clear();
+        UpdatePaymentRequest request = UpdateRequestFor(draft) with
+        {
+            Amount = 4321.00m,
+            RowVersion = rowVersion
+        };
+
+        // Act
+        Result<PaymentDto> result =
+            await _harness.Service.UpdateDraftAsync(draft.Id, request, CancellationToken.None);
+
+        // Assert
+        Payment stored = await _scope.Context.Payments
+            .AsNoTracking()
+            .SingleAsync(payment => payment.Id == draft.Id, CancellationToken.None);
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.IsSuccess, Is.False);
+            Assert.That(result.ErrorCode, Is.EqualTo(CommonErrorCodes.CONCURRENT_MODIFICATION));
+            Assert.That(stored.Amount, Is.EqualTo(draft.Amount), "a malformed token writes nothing");
+            Assert.That(_harness.RecordedAudits, Is.Empty);
+        });
+    }
+
     [Test]
     public async Task Update_DraftPayment_RecordsAuditUpdate_WithNonEmptyBeforeJson()
     {

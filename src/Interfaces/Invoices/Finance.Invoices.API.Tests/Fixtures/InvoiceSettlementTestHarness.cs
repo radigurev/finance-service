@@ -28,12 +28,14 @@ public sealed class InvoiceSettlementTestHarness
         InvoicesDbContext db,
         InvoiceSettlementService service,
         Mock<IAuditService> auditMock,
-        List<AuditEntry> recordedAudits)
+        List<AuditEntry> recordedAudits,
+        RecordingLogger<InvoiceSettlementService> logger)
     {
         _db = db;
         Service = service;
         AuditMock = auditMock;
         RecordedAudits = recordedAudits;
+        Logger = logger;
     }
 
     /// <summary>The system under test behind both consumers.</summary>
@@ -44,6 +46,9 @@ public sealed class InvoiceSettlementTestHarness
 
     /// <summary>The audit entries captured by <see cref="IAuditService.RecordAsync"/>, in call order.</summary>
     public List<AuditEntry> RecordedAudits { get; }
+
+    /// <summary>The recording logger capturing the service's structured log lines, in call order.</summary>
+    public RecordingLogger<InvoiceSettlementService> Logger { get; }
 
     /// <summary>Builds a harness over the supplied SQLite-backed context.</summary>
     /// <param name="db">The SQLite-backed invoices context.</param>
@@ -60,14 +65,16 @@ public sealed class InvoiceSettlementTestHarness
             .Callback<AuditEntry, CancellationToken, bool>((entry, _, _) => recordedAudits.Add(entry))
             .ReturnsAsync(Result.Success());
 
+        RecordingLogger<InvoiceSettlementService> logger = new();
+
         InvoiceSettlementService service = new(
             db,
             new InvoiceSettlementStatusCalculator(),
             auditMock.Object,
             new StubCurrentUserAccessor(),
-            NullLogger<InvoiceSettlementService>.Instance);
+            logger);
 
-        return new InvoiceSettlementTestHarness(db, service, auditMock, recordedAudits);
+        return new InvoiceSettlementTestHarness(db, service, auditMock, recordedAudits, logger);
     }
 
     /// <summary>Runs the real allocation consumer over the supplied event.</summary>

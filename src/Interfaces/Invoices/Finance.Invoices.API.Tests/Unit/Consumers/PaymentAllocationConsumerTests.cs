@@ -6,6 +6,7 @@ using Finance.Invoices.API.Tests.Fixtures;
 using Finance.Invoices.DBModel.Models;
 using Finance.ServiceModel.Events.Payments;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 
 namespace Finance.Invoices.API.Tests.Unit.Consumers;
@@ -394,6 +395,62 @@ public sealed class PaymentAllocationConsumerTests
             Assert.That(reloaded.SettlementStatus, Is.EqualTo(SettlementStatus.Settled));
             Assert.That(reloaded.SettlementStatus, Is.Not.EqualTo(disagreeing.InvoiceSettlementStatus));
         });
+    }
+
+    /// <summary>
+    /// The other half of §2.15 step 4: keeping the local value SILENTLY would hide a real cross-service
+    /// divergence, so the service MUST emit a structured warning naming the reported and the derived status.
+    /// </summary>
+    [Test]
+    public async Task AllocationConsumer_EventStatusDisagreesWithLocalDerivation_LogsStructuredWarning()
+    {
+        // Arrange
+        Guid invoiceId = await SeedInvoiceAsync(InvoiceSeedBuilder.Create().WithGrossTotal(1000.00m));
+        PaymentAllocatedEvent disagreeing = PaymentAllocatedEventBuilder.Create()
+            .WithInvoiceId(invoiceId)
+            .WithOccurredAt(Earlier)
+            .WithSettlement(1000.00m, 1000.00m, SettlementStatus.PartiallySettled)
+            .Build();
+
+        // Act
+        await _harness.ConsumeAsync(disagreeing);
+
+        // Assert
+        IReadOnlyList<RecordedLogEntry> warnings =
+            [.. _harness.Logger.Entries.Where(entry => entry.Level == LogLevel.Warning)];
+        Assert.That(warnings, Has.Count.EqualTo(1));
+        Assert.Multiple(() =>
+        {
+            Assert.That(warnings[0].Message, Does.Contain("Settlement derivation disagreement"));
+            Assert.That(warnings[0].Message, Does.Contain(invoiceId.ToString()));
+            Assert.That(warnings[0].Message, Does.Contain(nameof(SettlementStatus.PartiallySettled)));
+            Assert.That(warnings[0].Message, Does.Contain(nameof(SettlementStatus.Settled)));
+            Assert.That(warnings[0].Message, Does.Contain("Keeping the local value"));
+        });
+    }
+
+    /// <summary>
+    /// The warning is a DISAGREEMENT signal, not a per-event trace: when the publisher's reported status matches
+    /// the local derivation nothing is warned about (§2.15 step 4).
+    /// </summary>
+    [Test]
+    public async Task AllocationConsumer_EventStatusAgreesWithLocalDerivation_LogsNoWarning()
+    {
+        // Arrange
+        Guid invoiceId = await SeedInvoiceAsync(InvoiceSeedBuilder.Create().WithGrossTotal(1000.00m));
+        PaymentAllocatedEvent agreeing = PaymentAllocatedEventBuilder.Create()
+            .WithInvoiceId(invoiceId)
+            .WithOccurredAt(Earlier)
+            .WithSettlement(1000.00m, 1000.00m, SettlementStatus.Settled)
+            .Build();
+
+        // Act
+        await _harness.ConsumeAsync(agreeing);
+
+        // Assert
+        Assert.That(
+            _harness.Logger.Entries.Where(entry => entry.Level == LogLevel.Warning),
+            Is.Empty);
     }
 
     // ---- Defensive invariants (SDD-INV-001 §2.14) ----

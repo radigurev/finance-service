@@ -135,6 +135,32 @@ public sealed class PaymentPostedEventConsumerTests
     }
 
     [Test]
+    public async Task PaymentPostedConsumer_ReversedPayment_Throws_ForRetryAndDlq()
+    {
+        // Arrange
+        Guid originalJournalEntryId = Guid.NewGuid();
+        Payment reversed = await SeedAsync(PaymentBuilder.Create()
+            .WithStatus(PaymentStatus.Reversed)
+            .WithJournalEntryId(originalJournalEntryId));
+
+        // Act & Assert
+        Assert.That(
+            async () => await _sut.Consume(ContextFor(BackEventFor(reversed.Id, Guid.NewGuid()))),
+            Throws.InstanceOf<InvalidOperationException>()
+                .With.Message.Contains("PAYMENT_NOT_CONFIRMED"));
+        Payment stored = await LoadAsync(reversed.Id);
+        Assert.Multiple(() =>
+        {
+            Assert.That(stored.Status, Is.EqualTo(PaymentStatus.Reversed), "never mutated back to Posted");
+            Assert.That(
+                stored.JournalEntryId,
+                Is.EqualTo(originalJournalEntryId),
+                "the reversed entry's link is never overwritten by the late back-event");
+            Assert.That(_harness.RecordedAudits, Is.Empty);
+        });
+    }
+
+    [Test]
     public async Task PaymentPostedConsumer_DoesNotReRunPeriodGuard_WhenPeriodClosedAfterConfirm()
     {
         // Arrange

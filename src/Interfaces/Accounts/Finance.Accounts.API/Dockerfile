@@ -1,11 +1,14 @@
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
 COPY nuget.config global.json ./
 COPY local-packages/ local-packages/
 COPY src/Directory.Build.props src/
 COPY src/Finance.Common/ src/Finance.Common/
+COPY src/Finance.GenericFiltering/ src/Finance.GenericFiltering/
 COPY src/Finance.ServiceModel/ src/Finance.ServiceModel/
+COPY src/Country/ src/Country/
+COPY src/Infrastructure/ src/Infrastructure/
 COPY src/Databases/Finance.Accounts.DBModel/ src/Databases/Finance.Accounts.DBModel/
 COPY src/Interfaces/Accounts/Finance.Accounts.API/ src/Interfaces/Accounts/Finance.Accounts.API/
 

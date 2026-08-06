@@ -16,6 +16,7 @@ public sealed class InvoiceSeedBuilder
     private static readonly DateTimeOffset SeedIssueDate = new(2026, 3, 1, 0, 0, 0, TimeSpan.Zero);
 
     private Guid _id = Guid.NewGuid();
+    private string? _documentNumber;
     private InvoiceStatus _status = InvoiceStatus.Posted;
     private string _currencyCode = "BGN";
     private decimal _exchangeRate = 1.000000m;
@@ -34,6 +35,18 @@ public sealed class InvoiceSeedBuilder
     public InvoiceSeedBuilder WithId(Guid id)
     {
         _id = id;
+        return this;
+    }
+
+    /// <summary>
+    /// Overrides the gapless document number, so a test may seed SEVERAL non-draft invoices without colliding on
+    /// the UNIQUE filtered index <c>IX_Invoices_DocumentNumber</c>.
+    /// </summary>
+    /// <param name="documentNumber">The document number to assign.</param>
+    /// <returns>This builder.</returns>
+    public InvoiceSeedBuilder WithDocumentNumber(string documentNumber)
+    {
+        _documentNumber = documentNumber;
         return this;
     }
 
@@ -91,7 +104,7 @@ public sealed class InvoiceSeedBuilder
         return new Invoice
         {
             Id = _id,
-            DocumentNumber = _status == InvoiceStatus.Draft ? null : "SINV-2026-000001",
+            DocumentNumber = _documentNumber ?? (_status == InvoiceStatus.Draft ? null : "SINV-2026-000001"),
             DocumentType = InvoiceDocumentType.SaleInvoice,
             Direction = InvoiceDirection.AR,
             Status = _status,

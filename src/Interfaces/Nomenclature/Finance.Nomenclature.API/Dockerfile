@@ -9,17 +9,17 @@ COPY src/Finance.GenericFiltering/ src/Finance.GenericFiltering/
 COPY src/Finance.ServiceModel/ src/Finance.ServiceModel/
 COPY src/Country/ src/Country/
 COPY src/Infrastructure/ src/Infrastructure/
-COPY src/Databases/Finance.Journal.DBModel/ src/Databases/Finance.Journal.DBModel/
-COPY src/Interfaces/Journal/Finance.Journal.API/ src/Interfaces/Journal/Finance.Journal.API/
+COPY src/Databases/Finance.Nomenclature.DBModel/ src/Databases/Finance.Nomenclature.DBModel/
+COPY src/Interfaces/Nomenclature/Finance.Nomenclature.API/ src/Interfaces/Nomenclature/Finance.Nomenclature.API/
 
-RUN dotnet restore src/Interfaces/Journal/Finance.Journal.API/Finance.Journal.API.csproj
+RUN dotnet restore src/Interfaces/Nomenclature/Finance.Nomenclature.API/Finance.Nomenclature.API.csproj
 
-RUN dotnet publish src/Interfaces/Journal/Finance.Journal.API/Finance.Journal.API.csproj \
+RUN dotnet publish src/Interfaces/Nomenclature/Finance.Nomenclature.API/Finance.Nomenclature.API.csproj \
     -c Release -o /app/publish --no-restore
 
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
 COPY --from=build /app/publish .
 
-EXPOSE 6004
-ENTRYPOINT ["dotnet", "Finance.Journal.API.dll"]
+EXPOSE 6009
+ENTRYPOINT ["dotnet", "Finance.Nomenclature.API.dll"]

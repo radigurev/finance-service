@@ -47,7 +47,7 @@ Each functional module is its own microservice with its own database. A single Y
 |---|---|---|---|---|---|
 | 1 | **Finance.Accounts.API** | Chart of Accounts | 6001 | `finance_accounts` | Reference data |
 | 2 | **Finance.Periods.API** | Fiscal Periods | 6002 | `finance_periods` | Reference data |
-| 3 | **Finance.Currency.API** | Currencies + Exchange Rates | 6003 | `finance_currency` | Reference data |
+| 3 | ~~**Finance.Currency.API**~~ → **Finance.Nomenclature.API** | Currencies + Exchange Rates, **plus** the Warehouse country/state/city proxy | ~~6003~~ **6009** | ~~`finance_currency`~~ **`finance_nomenclature`** | Reference data |
 | 4 | **Finance.Journal.API** | Journal Entries + GL + Posting Engine | 6004 | `finance_journal` | L4 Bookkeeping |
 | 5 | **Finance.Invoices.API** | Purchase + Sale invoices + lifecycle | 6005 | `finance_invoices` | L4 Documents |
 | 6 | **Finance.Payments.API** | Payments + Allocations + Matching | 6006 | `finance_payments` | L4 Documents |
@@ -55,6 +55,8 @@ Each functional module is its own microservice with its own database. A single Y
 | 8 | **Finance.EventLog.API** | Inbound event log (Warehouse + Finance) | 6008 | `finance_eventlog` | Cross-cutting |
 | — | **Finance.Gateway** | YARP — single entrypoint; also serves Warehouse reads | 6000 | — | Cross-cutting |
 | — | **Finance.Frontend** | React SPA | 6100 | — | Cross-cutting |
+
+> **Correction (2026-08-06, Batch 17).** Service #3 shipped as `Finance.Nomenclature.API` on port **6009**, database `finance_nomenclature` — it subsumed the planned `Finance.Currency.API` and additionally proxies Warehouse country/state/city (SDD-NOM-001). **Ports 6003 and 6007 are unallocated**: 6003 was the planned Currency port, and 6007 is reserved for `Finance.Reporting.API`, which has no project yet (Phase 7). All eight shipped services agree on their ports across `appsettings.json.template`, their Dockerfile `EXPOSE`, the Gateway cluster config and `docker-compose.finance.yml`; this table was the only source that disagreed.
 
 ### 2.1 Shared libraries (NuGet — GitHub Packages)
 
