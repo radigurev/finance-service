@@ -7,6 +7,9 @@ import {
   ExchangeRatesPage,
   JournalEntriesListPage,
   InvoicesListPage,
+  PaymentsListPage,
+  OpenItemsListPage,
+  AgingReportPage,
   FiscalPeriodsListPage,
   TrialBalancePage,
   AccountLedgerPage,
@@ -30,6 +33,9 @@ export function App() {
         <Route path="accounts" element={<AccountsListPage />} />
         <Route path="journal-entries" element={<JournalEntriesListPage />} />
         <Route path="invoices" element={<InvoicesListPage />} />
+        <Route path="payments" element={<PaymentsListPage />} />
+        <Route path="open-items" element={<OpenItemsListPage />} />
+        <Route path="aging" element={<AgingReportPage />} />
         <Route path="posting-rules" element={<PostingRulesListPage />} />
         <Route path="periods" element={<FiscalPeriodsListPage />} />
         <Route path="general-ledger" element={<TrialBalancePage />} />

@@ -30,3 +30,25 @@ export function getApiErrorMessage(err: unknown, t: TFunction): string {
 
   return t('errors.GENERIC_ERROR');
 }
+
+/**
+ * Reads the machine error CODE out of an Axios/ProblemDetails failure — the SCREAMING_SNAKE_CASE
+ * `title` the backend stamps per SDD-INFRA-001. Callers use it only to choose the PRESENTATION of a
+ * failure (e.g. `PAYMENT_POSTING_PENDING` is a normal transient state and must read as progress, not
+ * as a destructive error — SDD-UI-FIN-002 §2.7). The user-facing text still comes from
+ * {@link getApiErrorMessage}; the raw code MUST NOT be rendered.
+ */
+export function getApiErrorCode(err: unknown): string | undefined {
+  if (err instanceof AxiosError && err.response?.data) {
+    const problem = err.response.data as ProblemDetails;
+    if (problem.title) {
+      return problem.title;
+    }
+  }
+  return undefined;
+}
+
+/** True when the failure is an HTTP 403 — the missing-permission case (SDD-UI-FIN-002 §2.17). */
+export function isForbiddenError(err: unknown): boolean {
+  return err instanceof AxiosError && err.response?.status === 403;
+}

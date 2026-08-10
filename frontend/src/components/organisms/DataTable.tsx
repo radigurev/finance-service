@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { Box } from '@mui/material';
 import {
   DataGrid,
   type GridColDef,
@@ -6,8 +6,8 @@ import {
   type GridSortModel,
   type GridValidRowModel
 } from '@mui/x-data-grid';
-import { useTranslation } from 'react-i18next';
 import { useLayoutStore } from '@/shared/stores/layout';
+import { useGridLocaleText } from '@/shared/hooks/useGridLocaleText';
 import { EmptyState } from '@/components/molecules';
 
 interface DataTableProps<TRow extends GridValidRowModel> {
@@ -38,6 +38,18 @@ const PAGE_SIZE_OPTIONS = [25, 50, 100, 200];
  * layout store, hairline frame, uppercase tracked headers, and an editorial empty state.
  * Column-level mono/right-alignment is opted in by setting a column's
  * `headerClassName`/`cellClassName` to the `ledgerMono` token via {@link ledgerMonoColumn}.
+ *
+ * **The empty state is rendered INSTEAD of the grid, never inside it.** A DataGrid's
+ * `noRowsOverlay` lives inside `.MuiDataGrid-virtualScroller`, which is `overflow: hidden` and — in
+ * `autoHeight` mode with no rows — only two row-heights tall (`--DataGrid-overlayHeight`). A title +
+ * description + action needs roughly twice that, so an overlay-hosted empty state silently clipped its
+ * description and hid its action button entirely. Growing the overlay would mean guessing a pixel
+ * height that has to hold for both densities and for the longer Bulgarian strings; rendering the state
+ * outside any clipping container removes the failure mode instead of tuning it.
+ *
+ * A grid whose CURRENT PAGE is empty while the server still reports rows (a stale page after a filter
+ * narrowed the result set) keeps the grid — and therefore its footer — so the operator can page back;
+ * MUI's own single-line overlay carries the title in that case and fits the default height.
  */
 export function DataTable<TRow extends GridValidRowModel>({
   rows,
@@ -53,21 +65,33 @@ export function DataTable<TRow extends GridValidRowModel>({
   emptyDescription,
   emptyAction
 }: DataTableProps<TRow>) {
-  const { t } = useTranslation();
   const density = useLayoutStore((s) => s.density);
+  const localeText = useGridLocaleText(emptyTitle);
 
-  const localeText = useMemo(
-    () => ({
-      noRowsLabel: emptyTitle,
-      footerRowSelected: () => '',
-      MuiTablePagination: {
-        labelRowsPerPage: t('table.rowsPerPage')
-      }
-    }),
-    [emptyTitle, t]
-  );
+  const showEmpty: boolean = !loading && rows.length === 0 && rowCount === 0;
 
-  const showEmpty = !loading && rows.length === 0;
+  if (showEmpty) {
+    return (
+      <Box
+        data-testid="data-table-empty"
+        sx={{
+          border: '1px solid',
+          borderColor: 'divider',
+          // 4px, matching the DataGrid frame this stands in for, so the surface geometry does not
+          // change as the table flips between populated and empty.
+          borderRadius: '4px',
+          backgroundColor: 'background.paper'
+        }}
+      >
+        <EmptyState
+          framed={false}
+          title={emptyTitle}
+          description={emptyDescription}
+          action={emptyAction}
+        />
+      </Box>
+    );
+  }
 
   return (
     <DataGrid<TRow>
@@ -88,18 +112,6 @@ export function DataTable<TRow extends GridValidRowModel>({
       disableColumnMenu
       disableRowSelectionOnClick
       localeText={localeText}
-      slots={{
-        noRowsOverlay: showEmpty
-          ? () => (
-              <EmptyState
-                framed={false}
-                title={emptyTitle}
-                description={emptyDescription}
-                action={emptyAction}
-              />
-            )
-          : undefined
-      }}
       slotProps={{
         loadingOverlay: { variant: 'linear-progress', noRowsVariant: 'skeleton' }
       }}

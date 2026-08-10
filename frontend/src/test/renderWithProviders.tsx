@@ -9,6 +9,7 @@ import { SnackbarProvider } from 'notistack';
 import { I18nextProvider } from 'react-i18next';
 import { buildLedgerTheme } from '@/shared/theme';
 import { NotificationBridge } from '@/shared/notifications/NotificationBridge';
+import { ledgerSnackbarComponents } from '@/shared/notifications/ledgerSnackbar';
 import i18n from '@/shared/i18n/i18n';
 
 /** Options controlling routing context for a rendered component. */
@@ -38,7 +39,7 @@ function Providers({ children, options }: { children: ReactNode; options: Render
     <I18nextProvider i18n={i18n}>
       <ThemeProvider theme={theme}>
         <CssBaseline />
-        <SnackbarProvider>
+        <SnackbarProvider Components={ledgerSnackbarComponents}>
           <NotificationBridge />
           <QueryClientProvider client={createTestQueryClient()}>
             <MemoryRouter initialEntries={options.initialEntries ?? ['/']}>{children}</MemoryRouter>
